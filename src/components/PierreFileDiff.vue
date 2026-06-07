@@ -41,6 +41,7 @@
       diffStyle: 'unified',
       themeType: 'dark',
       overflow: 'scroll',
+      disableFileHeader: true,
     })
 
     const fileDiff = buildFileDiff(props.file)
