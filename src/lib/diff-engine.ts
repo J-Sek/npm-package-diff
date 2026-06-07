@@ -143,7 +143,6 @@ export async function buildDiff (
         truncated: full!.length > MAX_PATCH,
       })
     } else if (bv && !av) {
-      // Added in B.
       const binary = isBinary(bv)
       const text = binary ? '' : decoder.decode(bv)
       const added = countLines(text)
@@ -162,7 +161,6 @@ export async function buildDiff (
         truncated: !!patch && patch.length > MAX_PATCH,
       })
     } else if (av && !bv) {
-      // Removed (present in A, gone in B).
       const binary = isBinary(av)
       const text = binary ? '' : decoder.decode(av)
       const removed = countLines(text)

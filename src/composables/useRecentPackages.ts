@@ -25,7 +25,6 @@ function remember (name: string) {
   if (!trimmed) {
     return
   }
-  // Move to front, de-duplicated, capped.
   recent.value = [trimmed, ...recent.value.filter(n => n !== trimmed)].slice(0, MAX)
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(recent.value))
