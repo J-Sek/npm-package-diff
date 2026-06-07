@@ -16,10 +16,13 @@ interface PackumentVersion {
   dist: { tarball: string }
 }
 
+type Repository = string | { type?: string, url?: string, directory?: string }
+
 interface Packument {
   'dist-tags': Record<string, string>
   'versions': Record<string, PackumentVersion>
   'time'?: Record<string, string>
+  'repository'?: Repository
 }
 
 const packumentCache = new Map<string, Promise<Packument>>()
@@ -57,6 +60,32 @@ export async function resolveTarball (name: string, versionOrTag: string, abortC
     throw new Error(`Version "${versionOrTag}" not found for "${name}"`)
   }
   return { name, version, tarball: entry.dist.tarball }
+}
+
+/**
+ * GitHub `owner/repo` slug from a package's `repository` metadata, or `null`
+ * when it isn't a GitHub repo. Handles the string shorthands (`owner/repo`,
+ * `github:owner/repo`) and the object form (`{ url: 'git+https://…' }`).
+ */
+export async function getRepoSlug (name: string): Promise<string | null> {
+  const pack = await fetchPackument(name)
+  const repo = pack.repository
+  let raw = (typeof repo === 'string' ? repo : repo?.url)?.trim()
+  if (!raw) {
+    return null
+  }
+
+  // npm shorthands: `github:owner/repo` and the bare `owner/repo` are GitHub.
+  raw = raw.replace(/^github:/, '')
+  if (!/^[\w.-]+\/[\w.-]+$/.test(raw) && !raw.includes('github.com')) {
+    return null
+  }
+
+  const match = raw.match(/(?:github\.com[:/])?([\w.-]+)\/([\w.-]+?)(?:\.git)?(?:[#?].*)?$/)
+  if (!match) {
+    return null
+  }
+  return `${match[1]}/${match[2]}`
 }
 
 /** List published versions newest-first, plus available dist-tags. */

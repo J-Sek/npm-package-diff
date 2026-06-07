@@ -1,16 +1,129 @@
 <script setup lang="ts">
   import type { FileEntry, Scope } from '@/lib/types'
   import { Selection } from '@vuetify/v0'
-  import { computed, reactive, ref, watch } from 'vue'
+  import { computed, onMounted, reactive, ref, watch } from 'vue'
   import { useDiff } from '@/composables/useDiff'
+  import { useRecentPackages } from '@/composables/useRecentPackages'
+  import { getRepoSlug, listVersions, resolveTarball } from '@/lib/registry'
+  import AutocompleteInput from './AutocompleteInput.vue'
+  import CopyButton from './CopyButton.vue'
+  import LoadingState from './LoadingState.vue'
   import PierreFileDiff from './PierreFileDiff.vue'
   import PierreTree from './PierreTree.vue'
 
+  const { recent, remember } = useRecentPackages()
   const { abort, aborting, result, loading, stage, detail, error, compare } = useDiff()
 
-  // The user's real use-case: latest `vuetify` vs the nightly channel.
+  const currentYear = new Date().getFullYear()
+
+  type Side = 'a' | 'b'
+
+  // Defaults (latest `vuetify` vs the nightly channel) unless overridden by URL.
   const a = reactive({ name: 'vuetify', version: 'latest' })
   const b = reactive({ name: '@vuetify/nightly', version: 'latest' })
+  const pkg = (side: Side) => (side === 'a' ? a : b)
+
+  // ---- Version dropdowns: lazily fetched per side, invalidated on name change.
+  const versionItems = reactive<Record<Side, string[]>>({ a: [], b: [] })
+  const versionLoading = reactive<Record<Side, boolean>>({ a: false, b: false })
+  const versionLoadedFor = reactive<Record<Side, string>>({ a: '', b: '' })
+
+  async function loadVersions (side: Side) {
+    const name = pkg(side).name.trim()
+    if (!name || versionLoadedFor[side] === name) return
+    versionLoading[side] = true
+    try {
+      const { versions, tags } = await listVersions(name)
+      // Dist-tags (latest, next, …) first, then versions newest-first.
+      versionItems[side] = [...new Set([...Object.keys(tags), ...versions])]
+      versionLoadedFor[side] = name
+    } catch {
+      versionItems[side] = []
+    } finally {
+      versionLoading[side] = false
+    }
+  }
+
+  watch(() => a.name, () => {
+    versionItems.a = []
+    versionLoadedFor.a = ''
+    // A different "a" package invalidates any shared/selected file path.
+    pendingPath.value = null
+    activePath.value = null
+  })
+  watch(() => b.name, () => {
+    versionItems.b = []
+    versionLoadedFor.b = ''
+  })
+
+  // Selected file shown in the diff pane. `pendingPath` holds a shared `path`
+  // param until its file shows up in the results.
+  const activePath = ref<string | null>(null)
+  const pendingPath = ref<string | null>(null)
+
+  // ---- URL params (?a=&b=, optional &av=&bv=&path=) — read on load, write on compare.
+  function readUrl () {
+    const p = new URLSearchParams(globalThis.location.search)
+    if (p.get('a')) a.name = p.get('a')!
+    if (p.get('b')) b.name = p.get('b')!
+    if (p.get('av')) a.version = p.get('av')!
+    if (p.get('bv')) b.version = p.get('bv')!
+    pendingPath.value = p.get('path')
+  }
+
+  function buildQuery (): string {
+    const p = new URLSearchParams()
+    p.set('a', a.name.trim())
+    p.set('b', b.name.trim())
+    const av = a.version.trim()
+    const bv = b.version.trim()
+    if (av && av !== 'latest') p.set('av', av)
+    if (bv && bv !== 'latest') p.set('bv', bv)
+    return p.toString()
+  }
+
+  function writeUrl () {
+    // Preserve the selected (or pending) file so Compare doesn't drop `path`.
+    const path = activePath.value ?? pendingPath.value
+    const suffix = path ? `&path=${encodeURIComponent(path)}` : ''
+    globalThis.history.replaceState(null, '', `${globalThis.location.pathname}?${buildQuery()}${suffix}`)
+  }
+
+  onMounted(readUrl)
+
+  // ---- Shareable link: a full URL with the current selection as params.
+  const shareUrl = computed(() =>
+    `${globalThis.location.origin}${globalThis.location.pathname}?${buildQuery()}`,
+  )
+  const canShare = computed(() =>
+    [a.name, a.version, b.name, b.version].every(v => v.trim() !== ''),
+  )
+
+  // ---- Full source diff: when both sides are the same package, link out to a
+  // GitHub tag comparison on diffshub.com (resolving dist-tags to real versions).
+  const sourceDiffUrl = ref<string | null>(null)
+
+  watch([() => a.name, () => b.name, () => a.version, () => b.version], async () => {
+    sourceDiffUrl.value = null
+    const name = a.name.trim()
+    if (!name || name !== b.name.trim()) return
+
+    const token = name + a.version + b.version
+    try {
+      const [slug, av, bv] = await Promise.all([
+        getRepoSlug(name),
+        resolveTarball(name, a.version.trim() || 'latest'),
+        resolveTarball(name, b.version.trim() || 'latest'),
+      ])
+      // Bail if inputs changed while awaiting, the repo isn't on GitHub, or
+      // both sides resolved to the same version (nothing to diff).
+      if (token !== name + a.version + b.version) return
+      if (!slug || av.version === bv.version) return
+      sourceDiffUrl.value = `https://diffshub.com/${slug}/compare/v${av.version}...v${bv.version}`
+    } catch {
+      /* leave the link hidden on any resolution failure */
+    }
+  }, { immediate: true })
 
   const excludeMaps = ref(true)
   const excludeDts = ref(true)
@@ -40,12 +153,15 @@
   }
 
   async function run () {
+    writeUrl()
     try {
       await compare(
         { name: a.name.trim(), version: a.version.trim() || 'latest' },
         { name: b.name.trim(), version: b.version.trim() || 'latest' },
         { exclude: buildExclude() },
       )
+      remember(a.name)
+      remember(b.name)
     } catch {
       /* surfaced via `error` ref */
     }
@@ -63,18 +179,33 @@
     return counts
   })
 
-  // Selected file shown in the diff pane.
-  const activePath = ref<string | null>(null)
   const activeFile = computed<FileEntry | null>(
     () => visibleFiles.value.find(f => f.path === activePath.value) ?? null,
   )
 
-  // Keep the selection valid: default to the first file, and reset when the
-  // current one falls outside the active scope filter or a new result arrives.
+  // Per-file shareable link: the base comparison params plus `path`.
+  const activeFileShareUrl = computed(() => {
+    if (!activeFile.value) return ''
+    const base = `${globalThis.location.origin}${globalThis.location.pathname}?${buildQuery()}`
+    return `${base}&path=${encodeURIComponent(activeFile.value.path)}`
+  })
+
+  // Keep the selection valid: honour a pending shared `path` once present, then
+  // default to the first file / reset when the current one leaves the scope.
   watch(visibleFiles, files => {
+    if (pendingPath.value && files.some(f => f.path === pendingPath.value)) {
+      activePath.value = pendingPath.value
+      pendingPath.value = null
+      return
+    }
     if (!files.some(f => f.path === activePath.value)) {
       activePath.value = files[0]?.path ?? null
     }
+  })
+
+  // Keep the address bar's `path` in sync as the user navigates files.
+  watch(activePath, () => {
+    if (result.value) writeUrl()
   })
 </script>
 
@@ -98,14 +229,25 @@
           </label>
 
           <div class="flex gap-2">
-            <input
-              v-model="a.name"
-              class="field flex-1"
-              placeholder="package name"
-              spellcheck="false"
-            >
+            <div class="flex-1 min-w-0">
+              <AutocompleteInput
+                v-model="a.name"
+                aria-label="Base package name"
+                :items="recent"
+                placeholder="package name"
+              />
+            </div>
 
-            <input v-model="a.version" class="field w-32" placeholder="version" spellcheck="false">
+            <div class="w-36 shrink-0">
+              <AutocompleteInput
+                v-model="a.version"
+                aria-label="Base version"
+                :items="versionItems.a"
+                :loading="versionLoading.a"
+                placeholder="version"
+                @open="loadVersions('a')"
+              />
+            </div>
           </div>
         </div>
 
@@ -125,14 +267,25 @@
           </label>
 
           <div class="flex gap-2">
-            <input
-              v-model="b.name"
-              class="field flex-1"
-              placeholder="package name"
-              spellcheck="false"
-            >
+            <div class="flex-1 min-w-0">
+              <AutocompleteInput
+                v-model="b.name"
+                aria-label="Compare package name"
+                :items="recent"
+                placeholder="package name"
+              />
+            </div>
 
-            <input v-model="b.version" class="field w-32" placeholder="version" spellcheck="false">
+            <div class="w-36 shrink-0">
+              <AutocompleteInput
+                v-model="b.version"
+                aria-label="Compare version"
+                :items="versionItems.b"
+                :loading="versionLoading.b"
+                placeholder="version"
+                @open="loadVersions('b')"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -152,6 +305,13 @@
           <input v-model="excludeMin" class="accent-primary" type="checkbox"> exclude
           <code class="text-xs opacity-70">*.min.*</code>
         </label>
+
+        <CopyButton
+          class="ml-auto"
+          :disabled="!canShare"
+          label="Copy shareable link"
+          :value="shareUrl"
+        />
 
         <button
           v-show="loading"
@@ -185,7 +345,7 @@
         </button>
 
         <button
-          class="flex flex-row items-center gap-2 ml-auto px-5 py-2 rounded-lg bg-primary text-on-primary font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+          class="px-5 py-2 rounded-lg bg-primary text-on-primary font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           :disabled="loading || aborting"
           type="button"
           @click="run"
@@ -216,15 +376,22 @@
       </div>
     </div>
 
-    <!-- Status -->
-    <div
-      v-if="loading"
-      class="rounded-lg border border-subtle bg-surface px-4 py-3 mb-4 text-sm text-on-surface flex items-center gap-3"
-    >
-      <span class="inline-block w-3 h-3 rounded-full bg-primary animate-pulse" />
-      <span class="font-medium capitalize">{{ stage }}</span>
-      <span class="opacity-60 font-mono text-xs">{{ detail }}</span>
+    <!-- Full source diff (same package, two versions) -->
+    <div v-if="sourceDiffUrl" class="-mt-2 mb-4 text-sm text-right mr-2">
+      <a
+        class="inline-flex items-center gap-1.5 text-primary hover:underline"
+        :href="sourceDiffUrl"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        full source diff
+        <span aria-hidden="true">↗</span>
+        <span class="sr-only"> (opens diffshub.com in a new tab)</span>
+      </a>
     </div>
+
+    <!-- Status -->
+    <LoadingState v-if="loading" class="mb-4" :detail="detail" :stage="stage" />
 
     <div
       v-if="error"
@@ -296,7 +463,12 @@
         </aside>
 
         <section class="rounded-xl border border-subtle bg-surface overflow-hidden">
-          <PierreFileDiff v-if="activeFile" :key="activeFile.path" :file="activeFile" />
+          <PierreFileDiff
+            v-if="activeFile"
+            :key="activeFile.path"
+            :file="activeFile"
+            :share-url="activeFileShareUrl"
+          />
 
           <p v-else class="px-4 py-8 text-center text-sm text-on-surface-variant">
             Select a file to view its diff.
@@ -304,21 +476,36 @@
         </section>
       </div>
     </template>
+
+    <footer class="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-on-surface-variant">
+      <span>GPLv3</span>
+
+      <span aria-hidden="true" class="opacity-40">•</span>
+
+      <span>&copy; {{ currentYear }}</span>
+
+      <span aria-hidden="true" class="opacity-40">•</span>
+
+      <a
+        class="inline-flex items-center gap-2 hover:text-on-surface transition-colors"
+        href="https://github.com/J-Sek/npm-package-diff"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        <svg
+          aria-hidden="true"
+          fill="currentColor"
+          height="18"
+          viewBox="0 0 16 16"
+          width="18"
+        >
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+        </svg>
+
+        <span>Source</span>
+        <span class="sr-only"> (opens in new tab)</span>
+      </a>
+
+    </footer>
   </div>
 </template>
-
-<style scoped>
-  .field {
-    background: var(--v0-surface-tint);
-    border: 1px solid color-mix(in srgb, var(--v0-divider) 50%, transparent);
-    border-radius: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    color: var(--v0-on-surface);
-    font-family: ui-monospace, monospace;
-  }
-  .field:focus-visible {
-    outline: 2px solid var(--v0-primary);
-    outline-offset: 1px;
-  }
-</style>

@@ -2,8 +2,9 @@
   import type { FileEntry, FileStatus } from '@/lib/types'
   import { FileDiff, processFile } from '@pierre/diffs'
   import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+  import CopyButton from './CopyButton.vue'
 
-  const props = defineProps<{ file: FileEntry }>()
+  const props = defineProps<{ file: FileEntry, shareUrl?: string }>()
 
   const host = ref<HTMLElement>()
   let instance: FileDiff | null = null
@@ -40,6 +41,7 @@
       diffStyle: 'unified',
       themeType: 'dark',
       overflow: 'scroll',
+      disableFileHeader: true,
     })
 
     const fileDiff = buildFileDiff(props.file)
@@ -72,9 +74,16 @@
         }"
       >{{ headerLabel[file.status][0] }}</span>
 
-      <span class="font-mono text-sm text-on-surface truncate">{{ file.path }}</span>
+      <span class="font-mono text-sm text-on-surface truncate mr-auto">{{ file.path }}</span>
 
-      <span class="ml-auto flex items-center gap-2 text-xs font-mono shrink-0">
+      <CopyButton
+        v-if="shareUrl"
+        label="Copy link to this file"
+        size="sm"
+        :value="shareUrl"
+      />
+
+      <span class="flex items-center gap-2 text-xs font-mono shrink-0">
         <span v-if="file.added" class="text-success">+{{ file.added }}</span>
         <span v-if="file.removed" class="text-error">-{{ file.removed }}</span>
       </span>

@@ -3,6 +3,10 @@
 Diff two npm package versions **entirely in the browser**. Built as a static site
 (no server, no backend) on top of [Vuetify0](https://0.vuetifyjs.com/).
 
+**[Try it live → pkg-diff.netlify.app](https://pkg-diff.netlify.app/)**
+
+![pkg-diff screenshot](./screenshot.png)
+
 The original manual workflow this replaces:
 
 ```bash
@@ -72,6 +76,35 @@ src/composables/useDiff.ts main-thread reactive handle for the worker
 src/components/            DiffApp (Vuetify0 + UnoCSS) + PierreTree / PierreFileDiff wrappers
 scripts/verify.mjs         Node end-to-end check against real npm packages
 ```
+
+## URL parameters
+
+The two packages being compared are read from (and written back to) the query
+string, so any comparison is a shareable, bookmarkable link.
+
+| Param | Meaning | Default |
+|-------|---------|---------|
+| `a`   | Base package name (left side) | `vuetify` |
+| `b`   | Compare package name (right side) | `@vuetify/nightly` |
+| `av`  | Base version or dist-tag (optional) | `latest` |
+| `bv`  | Compare version or dist-tag (optional) | `latest` |
+
+- Read once on load; missing params fall back to the defaults above.
+- After you hit **Compare**, the URL is rewritten (via `history.replaceState`, so
+  no new history entry) to reflect the current selection. `av`/`bv` are omitted
+  when they are `latest` to keep links clean.
+- Versions may be any published version (`4.1.0`) or a dist-tag (`latest`,
+  `next`, …); the value is passed straight to the npm registry resolver.
+
+```text
+# vue 3.5.0  vs  vue 3.5.13
+?a=vue&av=3.5.0&b=vue&bv=3.5.13
+
+# latest vuetify  vs  the nightly channel (same as no params)
+?a=vuetify&b=@vuetify/nightly
+```
+
+Scoped names work as-is — `@scope/pkg` needs no encoding in the query string.
 
 ## Develop
 
