@@ -17,6 +17,9 @@ importers:
       '@pierre/trees':
         specifier: 1.0.0-beta.4
         version: 1.0.0-beta.4(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@plausible-analytics/tracker':
+        specifier: ^0.4.5
+        version: 0.4.5
       '@vuetify/v0':
         specifier: latest
         version: 1.0.0-beta.0(vue@3.5.35(typescript@5.9.3))
@@ -374,6 +377,9 @@ packages:
   '@pkgr/core@0.3.6':
     resolution: {integrity: sha512-SEeaJLb3qBNF/OaXnaR1NmmBbFYk1zC0ZH/52fATcRPLFg/p791YrcyFFy44Bo9sLaGuSuLp5Q6axbb/O+v/RA==}
     engines: {node: ^14.18.0 || >=16.0.0}
+
+  '@plausible-analytics/tracker@0.4.5':
+    resolution: {integrity: sha512-6BfAGejXY+YA3Cw6LYT2Zpn4hTxDtPQAawFsYUsQCOg78wIS5C4deAGXTfJffa5VleMWITv5lpJ/EYuQBl1tPA==}
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
@@ -2128,6 +2134,8 @@ snapshots:
       react-dom: 19.2.7(react@19.2.7)
 
   '@pkgr/core@0.3.6': {}
+
+  '@plausible-analytics/tracker@0.4.5': {}
 
   '@polka/url@1.0.0-next.29': {}
 

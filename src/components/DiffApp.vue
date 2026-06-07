@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import type { FileEntry, Scope } from '@/lib/types'
+  import { track } from '@plausible-analytics/tracker'
   import { Selection } from '@vuetify/v0'
   import { computed, onMounted, reactive, ref, shallowRef, watch } from 'vue'
   import { useDiff } from '@/composables/useDiff'
@@ -148,6 +149,12 @@
 
   async function run () {
     writeUrl()
+    track('Compare', {
+      props: {
+        a: a.name.trim(),
+        b: b.name.trim(),
+      },
+    })
     try {
       await compare(
         { name: a.name.trim(), version: a.version.trim() || 'latest' },

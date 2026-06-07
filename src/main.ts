@@ -4,6 +4,7 @@
  * Bootstraps Vuetify and other plugins then mounts the App`
  */
 
+import { init } from '@plausible-analytics/tracker'
 // Composables
 import { createApp } from 'vue'
 
@@ -17,6 +18,10 @@ import App from './App.vue'
 import '@fontsource-variable/recursive/index.css'
 import '@/styles/recursive-mono.css'
 import 'virtual:uno.css'
+
+init({
+  domain: 'pkg-diff.netlify.app',
+})
 
 const app = createApp(App)
 
