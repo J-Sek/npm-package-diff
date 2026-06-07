@@ -23,7 +23,7 @@ async function extract (
   input: { name: string, version: string },
   label: string,
   abortController: AbortController,
-): Promise<ExtractedPkg | undefined> {
+): Promise<ExtractedPkg> {
   post({ type: 'progress', id, stage: 'resolve', detail: `${input.name}@${input.version}` })
   const resolved = await resolveTarball(input.name, input.version, abortController)
   await checkAborted(abortController)
@@ -76,15 +76,12 @@ self.addEventListener('message', async (event: MessageEvent<WorkerRequest>) => {
 
     await checkAborted(abortController)
 
-    post({ type: 'progress', id, stage: 'diff', detail: `${a!.entries.length}↔${b!.entries.length} files` })
-    const result = await buildDiff(a!, b!, msg.options.exclude, abortController)
-    if (abortController.signal.aborted) {
-      post({ type: 'aborted', id })
-    } else {
-      post({ type: 'result', id, result: result! })
-    }
+    post({ type: 'progress', id, stage: 'diff', detail: `${a.entries.length}↔${b.entries.length} files` })
+    const result = await buildDiff(a, b, msg.options.exclude, abortController)
+    await checkAborted(abortController)
+    post({ type: 'result', id, result: result! })
   } catch (error) {
-    if (error instanceof AbortedError) {
+    if (error instanceof AbortedError || abortController.signal.aborted) {
       post({ type: 'aborted', id })
     } else {
       post({ type: 'error', id, message: error instanceof Error ? error.message : String(error) })
