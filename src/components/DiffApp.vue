@@ -1,12 +1,13 @@
 <script setup lang="ts">
   import type { FileEntry, Scope } from '@/lib/types'
   import { Selection } from '@vuetify/v0'
-  import { computed, onMounted, reactive, ref, watch } from 'vue'
+  import { computed, onMounted, reactive, ref, shallowRef, watch } from 'vue'
   import { useDiff } from '@/composables/useDiff'
   import { useRecentPackages } from '@/composables/useRecentPackages'
   import { getRepoSlug, listVersions, resolveTarball } from '@/lib/registry'
   import AutocompleteInput from './AutocompleteInput.vue'
   import CopyButton from './CopyButton.vue'
+  import ExcludeFilters from './ExcludeFilters.vue'
   import LoadingState from './LoadingState.vue'
   import PierreFileDiff from './PierreFileDiff.vue'
   import PierreTree from './PierreTree.vue'
@@ -125,9 +126,10 @@
     }
   }, { immediate: true })
 
-  const excludeMaps = ref(true)
-  const excludeDts = ref(true)
-  const excludeMin = ref(false)
+  // Glob patterns to exclude, owned by <ExcludeFilters>. shallowRef keeps the
+  // emitted array plain (not a reactive proxy) so it survives postMessage's
+  // structured clone into the worker.
+  const excludePatterns = shallowRef<string[]>([])
 
   const scope = ref<Scope[]>(['lib', 'dist', 'other'])
   const scopeOptions: { id: Scope, label: string }[] = [
@@ -135,14 +137,6 @@
     { id: 'dist', label: 'dist' },
     { id: 'other', label: 'other' },
   ]
-
-  function buildExclude (): string[] {
-    const ex: string[] = []
-    if (excludeMaps.value) ex.push('*.map')
-    if (excludeDts.value) ex.push('*.d.ts', '*.d.mts', '*.d.cts')
-    if (excludeMin.value) ex.push('*.min.*')
-    return ex
-  }
 
   function swap () {
     const t = { name: a.name, version: a.version }
@@ -158,7 +152,7 @@
       await compare(
         { name: a.name.trim(), version: a.version.trim() || 'latest' },
         { name: b.name.trim(), version: b.version.trim() || 'latest' },
-        { exclude: buildExclude() },
+        { exclude: excludePatterns.value },
       )
       remember(a.name)
       remember(b.name)
@@ -290,65 +284,58 @@
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-x-6 gap-y-3 mt-4">
-        <label class="flex items-center gap-2 text-sm text-on-surface cursor-pointer select-none">
-          <input v-model="excludeMaps" class="accent-primary" type="checkbox"> exclude
-          <code class="text-xs opacity-70">*.map</code>
-        </label>
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-2 mt-4">
+        <span class="text-xs font-medium uppercase tracking-wide text-on-surface opacity-50 mr-1">
+          Exclude
+        </span>
 
-        <label class="flex items-center gap-2 text-sm text-on-surface cursor-pointer select-none">
-          <input v-model="excludeDts" class="accent-primary" type="checkbox"> exclude
-          <code class="text-xs opacity-70">*.d.ts</code>
-        </label>
+        <ExcludeFilters v-model:patterns="excludePatterns" />
 
-        <label class="flex items-center gap-2 text-sm text-on-surface cursor-pointer select-none">
-          <input v-model="excludeMin" class="accent-primary" type="checkbox"> exclude
-          <code class="text-xs opacity-70">*.min.*</code>
-        </label>
+        <div class="ml-auto flex items-center gap-x-2">
+          <CopyButton
+            class="opacity-50 hover:opacity-100 focus:opacity-100"
+            :disabled="!canShare"
+            label="Copy shareable link"
+            size="sm"
+            :value="shareUrl"
+          />
 
-        <CopyButton
-          class="ml-auto -mr-2 opacity-25 hover:opacity-100 focus:opacity-100"
-          :disabled="!canShare"
-          label="Copy shareable link"
-          size="sm"
-          :value="shareUrl"
-        />
-
-        <div class="relative">
-          <button
-            class="flex w-36 items-center justify-center px-5 py-2 font-medium rounded-lg transition-[background-color,opacity] disabled:opacity-50"
-            :class="[
-              aborting ? 'bg-warning text-on-warning' : 'bg-primary text-on-primary hover:opacity-90',
-              loading && !aborting ? 'pr-8' : '',
-            ]"
-            :disabled="loading"
-            type="button"
-            @click="run"
-          >
-            {{ aborting ? 'Aborting…' : loading ? 'Diffing…' : 'Compare' }}
-          </button>
-
-          <button
-            v-show="loading && !aborting"
-            aria-label="Abort"
-            class="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-md bg-error text-on-error hover:opacity-90 transition-opacity"
-            title="Abort"
-            type="button"
-            @click="abort"
-          >
-            <svg
-              aria-hidden="true"
-              fill="none"
-              height="1em"
-              stroke="currentColor"
-              stroke-linecap="round"
-              stroke-width="2"
-              viewBox="0 0 24 24"
-              width="1em"
+          <div class="relative">
+            <button
+              class="flex w-36 items-center justify-center px-5 py-2 font-medium rounded-lg transition-[background-color,opacity] disabled:opacity-50"
+              :class="[
+                aborting ? 'bg-warning text-on-warning' : 'bg-primary text-on-primary hover:opacity-90',
+                loading && !aborting ? 'pr-8' : '',
+              ]"
+              :disabled="loading"
+              type="button"
+              @click="run"
             >
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
+              {{ aborting ? 'Aborting…' : loading ? 'Diffing…' : 'Compare' }}
+            </button>
+
+            <button
+              v-show="loading && !aborting"
+              aria-label="Abort"
+              class="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-md bg-error text-on-error hover:opacity-90 transition-opacity"
+              title="Abort"
+              type="button"
+              @click="abort"
+            >
+              <svg
+                aria-hidden="true"
+                fill="none"
+                height="1em"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="1em"
+              >
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
