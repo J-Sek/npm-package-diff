@@ -3,10 +3,25 @@
   import { FileDiff, processFile } from '@pierre/diffs'
   import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-  const props = defineProps<{ file: FileEntry }>()
+  const props = defineProps<{ file: FileEntry, shareUrl?: string }>()
 
   const host = ref<HTMLElement>()
   let instance: FileDiff | null = null
+
+  const copied = ref(false)
+
+  async function share () {
+    if (!props.shareUrl) return
+    try {
+      await navigator.clipboard.writeText(props.shareUrl)
+      copied.value = true
+      globalThis.setTimeout(() => {
+        copied.value = false
+      }, 1500)
+    } catch {
+      /* clipboard unavailable (insecure context / denied) */
+    }
+  }
 
   const headerLabel: Record<FileStatus, string> = {
     added: 'Added',
@@ -78,6 +93,49 @@
         <span v-if="file.added" class="text-success">+{{ file.added }}</span>
         <span v-if="file.removed" class="text-error">-{{ file.removed }}</span>
       </span>
+
+      <button
+        v-if="shareUrl"
+        :aria-label="copied ? 'Link copied' : 'Copy link to this file'"
+        class="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md border border-subtle hover:bg-surface hover:border-primary transition-colors"
+        :class="copied ? 'text-success border-success' : 'text-on-surface-variant'"
+        :title="copied ? 'Link copied!' : 'Copy link to this file'"
+        type="button"
+        @click="share"
+      >
+        <svg
+          v-if="copied"
+          aria-hidden="true"
+          fill="none"
+          height="15"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2.5"
+          viewBox="0 0 24 24"
+          width="15"
+        >
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+
+        <svg
+          v-else
+          aria-hidden="true"
+          fill="none"
+          height="15"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="15"
+        >
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
+        </svg>
+      </button>
     </div>
 
     <p v-if="file.binary" class="px-4 py-6 text-sm text-on-surface-variant italic">

@@ -51,13 +51,19 @@
     versionLoadedFor.b = ''
   })
 
-  // ---- URL params (?a=&b=, optional &av=&bv=) — read on load, write on compare.
+  // Selected file shown in the diff pane. `pendingPath` holds a shared `path`
+  // param until its file shows up in the results.
+  const activePath = ref<string | null>(null)
+  const pendingPath = ref<string | null>(null)
+
+  // ---- URL params (?a=&b=, optional &av=&bv=&path=) — read on load, write on compare.
   function readUrl () {
     const p = new URLSearchParams(globalThis.location.search)
     if (p.get('a')) a.name = p.get('a')!
     if (p.get('b')) b.name = p.get('b')!
     if (p.get('av')) a.version = p.get('av')!
     if (p.get('bv')) b.version = p.get('bv')!
+    pendingPath.value = p.get('path')
   }
 
   function buildQuery (): string {
@@ -72,7 +78,10 @@
   }
 
   function writeUrl () {
-    globalThis.history.replaceState(null, '', `${globalThis.location.pathname}?${buildQuery()}`)
+    // Preserve the selected (or pending) file so Compare doesn't drop `path`.
+    const path = activePath.value ?? pendingPath.value
+    const suffix = path ? `&path=${encodeURIComponent(path)}` : ''
+    globalThis.history.replaceState(null, '', `${globalThis.location.pathname}?${buildQuery()}${suffix}`)
   }
 
   onMounted(readUrl)
@@ -153,18 +162,33 @@
     return counts
   })
 
-  // Selected file shown in the diff pane.
-  const activePath = ref<string | null>(null)
   const activeFile = computed<FileEntry | null>(
     () => visibleFiles.value.find(f => f.path === activePath.value) ?? null,
   )
 
-  // Keep the selection valid: default to the first file, and reset when the
-  // current one falls outside the active scope filter or a new result arrives.
+  // Per-file shareable link: the base comparison params plus `path`.
+  const activeFileShareUrl = computed(() => {
+    if (!activeFile.value) return ''
+    const base = `${globalThis.location.origin}${globalThis.location.pathname}?${buildQuery()}`
+    return `${base}&path=${encodeURIComponent(activeFile.value.path)}`
+  })
+
+  // Keep the selection valid: honour a pending shared `path` once present, then
+  // default to the first file / reset when the current one leaves the scope.
   watch(visibleFiles, files => {
+    if (pendingPath.value && files.some(f => f.path === pendingPath.value)) {
+      activePath.value = pendingPath.value
+      pendingPath.value = null
+      return
+    }
     if (!files.some(f => f.path === activePath.value)) {
       activePath.value = files[0]?.path ?? null
     }
+  })
+
+  // Keep the address bar's `path` in sync as the user navigates files.
+  watch(activePath, () => {
+    if (result.value) writeUrl()
   })
 </script>
 
@@ -399,7 +423,12 @@
         </aside>
 
         <section class="rounded-xl border border-subtle bg-surface overflow-hidden">
-          <PierreFileDiff v-if="activeFile" :key="activeFile.path" :file="activeFile" />
+          <PierreFileDiff
+            v-if="activeFile"
+            :key="activeFile.path"
+            :file="activeFile"
+            :share-url="activeFileShareUrl"
+          />
 
           <p v-else class="px-4 py-8 text-center text-sm text-on-surface-variant">
             Select a file to view its diff.
