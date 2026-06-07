@@ -95,8 +95,8 @@ export function useDiff () {
   }
 
   function abort () {
-    ensureWorker().postMessage({ type: 'abort', id: nextId })
     aborting.value = true
+    ensureWorker().postMessage({ type: 'abort', id: nextId })
   }
 
   return { result, loading, stage, detail, error, compare, abort, aborting, dispose }
