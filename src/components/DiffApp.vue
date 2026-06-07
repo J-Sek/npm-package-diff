@@ -47,6 +47,9 @@
   watch(() => a.name, () => {
     versionItems.a = []
     versionLoadedFor.a = ''
+    // A different "a" package invalidates any shared/selected file path.
+    pendingPath.value = null
+    activePath.value = null
   })
   watch(() => b.name, () => {
     versionItems.b = []
