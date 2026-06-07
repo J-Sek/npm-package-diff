@@ -9,6 +9,13 @@ module. The whole app is a static site you can drop on any host.
 
 ![pkg-diff screenshot](./screenshot.png)
 
+## Alternatives
+
+- [npmdiff.dev](https://npmdiff.dev/) – SSR, slow, no cross-package diffs, unknown source
+- [MUI diff-package](https://frontend-public.mui.com/diff-package) – slow, crashes easily
+- [`npm diff`](https://docs.npmjs.com/cli/v9/commands/npm-diff) – CLI only, no HTML output, no filters
+- other CLI tools – unmaintained, cumbersome to use
+
 ## Develop
 
 ```bash
