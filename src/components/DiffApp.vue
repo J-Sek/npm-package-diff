@@ -1,9 +1,10 @@
 <script setup lang="ts">
-  import type { Scope } from '@/lib/types'
+  import type { FileEntry, Scope } from '@/lib/types'
   import { Selection } from '@vuetify/v0'
-  import { computed, reactive, ref } from 'vue'
+  import { computed, reactive, ref, watch } from 'vue'
   import { useDiff } from '@/composables/useDiff'
-  import DiffFileRow from './DiffFileRow.vue'
+  import PierreFileDiff from './PierreFileDiff.vue'
+  import PierreTree from './PierreTree.vue'
 
   const { result, loading, stage, detail, error, compare } = useDiff()
 
@@ -61,10 +62,24 @@
     for (const f of result.value?.files ?? []) counts[f.scope]++
     return counts
   })
+
+  // Selected file shown in the diff pane.
+  const activePath = ref<string | null>(null)
+  const activeFile = computed<FileEntry | null>(
+    () => visibleFiles.value.find(f => f.path === activePath.value) ?? null,
+  )
+
+  // Keep the selection valid: default to the first file, and reset when the
+  // current one falls outside the active scope filter or a new result arrives.
+  watch(visibleFiles, files => {
+    if (!files.some(f => f.path === activePath.value)) {
+      activePath.value = files[0]?.path ?? null
+    }
+  })
 </script>
 
 <template>
-  <div class="max-w-4xl w-full mx-auto">
+  <div class="max-w-6xl w-full mx-auto">
     <header class="mb-6">
       <h1 class="text-2xl font-bold text-on-background">Package Diff</h1>
 
@@ -212,16 +227,29 @@
         </div>
       </Selection.Root>
 
-      <!-- File list -->
-      <div class="rounded-xl border border-subtle bg-surface overflow-hidden">
-        <p
-          v-if="visibleFiles.length === 0"
-          class="px-4 py-8 text-center text-sm text-on-surface-variant"
-        >
-          No differences in the selected scope.
-        </p>
+      <!-- Sidebar (tree) + diff content -->
+      <div
+        v-if="visibleFiles.length === 0"
+        class="rounded-xl border border-subtle bg-surface px-4 py-8 text-center text-sm text-on-surface-variant"
+      >
+        No differences in the selected scope.
+      </div>
 
-        <DiffFileRow v-for="file in visibleFiles" :key="file.path" :file="file" />
+      <div
+        v-else
+        class="grid grid-cols-[minmax(220px,300px)_1fr] gap-4 h-[70vh] min-h-[400px]"
+      >
+        <aside class="rounded-xl border border-subtle bg-surface overflow-hidden">
+          <PierreTree :active="activePath" :files="visibleFiles" @select="activePath = $event" />
+        </aside>
+
+        <section class="rounded-xl border border-subtle bg-surface overflow-hidden">
+          <PierreFileDiff v-if="activeFile" :key="activeFile.path" :file="activeFile" />
+
+          <p v-else class="px-4 py-8 text-center text-sm text-on-surface-variant">
+            Select a file to view its diff.
+          </p>
+        </section>
       </div>
     </template>
   </div>

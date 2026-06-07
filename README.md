@@ -32,8 +32,28 @@ Everything heavy runs in a **Web Worker** so the main thread stays responsive:
 4. **Diff** — file trees are compared for added / removed / modified. Modified
    text files are line-diffed by a **Rust → WASM** module (the `similar` crate)
    that produces a unified diff; binary files are detected and skipped.
-5. **Render** — results group by scope (`lib` / `dist` / `other`) with per-file
-   `+/-` counts and expandable unified diffs.
+5. **Render** — a scope filter (`lib` / `dist` / `other`), a virtualized file
+   tree sidebar ([`@pierre/trees`](https://diffs.com)) with A/M/D status, and a
+   diff content pane ([`@pierre/diffs`](https://diffs.com)).
+
+### Diff rendering (Pierre)
+
+The sidebar uses `@pierre/trees` and the content pane uses `@pierre/diffs` — both
+via their **framework-agnostic vanilla cores** (no React), wrapped in thin Vue
+components (`PierreTree.vue`, `PierreFileDiff.vue`) that render into a container
+element and clean up on unmount.
+
+Crucially, `@pierre/diffs` renders **from a unified patch**, not the full file:
+we prepend `---`/`+++` headers to the WASM patch and hand it to `processFile()`,
+so a multi-MB minified `dist` file with a small change is still a tiny render.
+It also virtualizes long diffs. Highlighting is **off** (`forcePlainText`, i.e. no
+Shiki highlighter is loaded) — Pierre keeps its gutters/line-numbers/±backgrounds
+but downloads no language grammars. Theming maps `--v0-*` → Pierre's
+`--diffs-*-override` / `--trees-theme-*` custom properties.
+
+> Note: importing `@pierre/diffs` statically bundles Shiki, so `dist/` emits many
+> lazy per-language grammar chunks. They are never fetched at runtime in
+> plain-text mode, but they do inflate the build output.
 
 ### Layout
 
@@ -49,7 +69,7 @@ src/lib/
   types.ts                 shared, structured-clone-safe types
 src/worker/diff.worker.ts  the pipeline, off the main thread
 src/composables/useDiff.ts main-thread reactive handle for the worker
-src/components/            DiffApp / DiffFileRow / UnifiedDiff (Vuetify0 + UnoCSS)
+src/components/            DiffApp (Vuetify0 + UnoCSS) + PierreTree / PierreFileDiff wrappers
 scripts/verify.mjs         Node end-to-end check against real npm packages
 ```
 
