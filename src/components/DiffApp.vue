@@ -1,16 +1,73 @@
 <script setup lang="ts">
   import type { FileEntry, Scope } from '@/lib/types'
   import { Selection } from '@vuetify/v0'
-  import { computed, reactive, ref, watch } from 'vue'
+  import { computed, onMounted, reactive, ref, watch } from 'vue'
   import { useDiff } from '@/composables/useDiff'
+  import { useRecentPackages } from '@/composables/useRecentPackages'
+  import { listVersions } from '@/lib/registry'
+  import AutocompleteInput from './AutocompleteInput.vue'
   import PierreFileDiff from './PierreFileDiff.vue'
   import PierreTree from './PierreTree.vue'
 
   const { result, loading, stage, detail, error, compare } = useDiff()
+  const { recent, remember } = useRecentPackages()
 
-  // The user's real use-case: latest `vuetify` vs the nightly channel.
+  type Side = 'a' | 'b'
+
+  // Defaults (latest `vuetify` vs the nightly channel) unless overridden by URL.
   const a = reactive({ name: 'vuetify', version: 'latest' })
   const b = reactive({ name: '@vuetify/nightly', version: 'latest' })
+  const pkg = (side: Side) => (side === 'a' ? a : b)
+
+  // ---- Version dropdowns: lazily fetched per side, invalidated on name change.
+  const versionItems = reactive<Record<Side, string[]>>({ a: [], b: [] })
+  const versionLoading = reactive<Record<Side, boolean>>({ a: false, b: false })
+  const versionLoadedFor = reactive<Record<Side, string>>({ a: '', b: '' })
+
+  async function loadVersions (side: Side) {
+    const name = pkg(side).name.trim()
+    if (!name || versionLoadedFor[side] === name) return
+    versionLoading[side] = true
+    try {
+      const { versions, tags } = await listVersions(name)
+      // Dist-tags (latest, next, …) first, then versions newest-first.
+      versionItems[side] = [...new Set([...Object.keys(tags), ...versions])]
+      versionLoadedFor[side] = name
+    } catch {
+      versionItems[side] = []
+    } finally {
+      versionLoading[side] = false
+    }
+  }
+
+  watch(() => a.name, () => {
+    versionItems.a = []
+    versionLoadedFor.a = ''
+  })
+  watch(() => b.name, () => {
+    versionItems.b = []
+    versionLoadedFor.b = ''
+  })
+
+  // ---- URL params (?a=&b=, optional &av=&bv=) — read on load, write on compare.
+  function readUrl () {
+    const p = new URLSearchParams(globalThis.location.search)
+    if (p.get('a')) a.name = p.get('a')!
+    if (p.get('b')) b.name = p.get('b')!
+    if (p.get('av')) a.version = p.get('av')!
+    if (p.get('bv')) b.version = p.get('bv')!
+  }
+
+  function writeUrl () {
+    const p = new URLSearchParams()
+    p.set('a', a.name)
+    p.set('b', b.name)
+    if (a.version && a.version !== 'latest') p.set('av', a.version)
+    if (b.version && b.version !== 'latest') p.set('bv', b.version)
+    globalThis.history.replaceState(null, '', `${globalThis.location.pathname}?${p}`)
+  }
+
+  onMounted(readUrl)
 
   const excludeMaps = ref(true)
   const excludeDts = ref(true)
@@ -40,12 +97,15 @@
   }
 
   async function run () {
+    writeUrl()
     try {
       await compare(
         { name: a.name.trim(), version: a.version.trim() || 'latest' },
         { name: b.name.trim(), version: b.version.trim() || 'latest' },
         { exclude: buildExclude() },
       )
+      remember(a.name)
+      remember(b.name)
     } catch {
       /* surfaced via `error` ref */
     }
@@ -98,14 +158,25 @@
           </label>
 
           <div class="flex gap-2">
-            <input
-              v-model="a.name"
-              class="field flex-1"
-              placeholder="package name"
-              spellcheck="false"
-            >
+            <div class="flex-1 min-w-0">
+              <AutocompleteInput
+                v-model="a.name"
+                aria-label="Base package name"
+                :items="recent"
+                placeholder="package name"
+              />
+            </div>
 
-            <input v-model="a.version" class="field w-32" placeholder="version" spellcheck="false">
+            <div class="w-36 shrink-0">
+              <AutocompleteInput
+                v-model="a.version"
+                aria-label="Base version"
+                :items="versionItems.a"
+                :loading="versionLoading.a"
+                placeholder="version"
+                @open="loadVersions('a')"
+              />
+            </div>
           </div>
         </div>
 
@@ -125,14 +196,25 @@
           </label>
 
           <div class="flex gap-2">
-            <input
-              v-model="b.name"
-              class="field flex-1"
-              placeholder="package name"
-              spellcheck="false"
-            >
+            <div class="flex-1 min-w-0">
+              <AutocompleteInput
+                v-model="b.name"
+                aria-label="Compare package name"
+                :items="recent"
+                placeholder="package name"
+              />
+            </div>
 
-            <input v-model="b.version" class="field w-32" placeholder="version" spellcheck="false">
+            <div class="w-36 shrink-0">
+              <AutocompleteInput
+                v-model="b.version"
+                aria-label="Compare version"
+                :items="versionItems.b"
+                :loading="versionLoading.b"
+                placeholder="version"
+                @open="loadVersions('b')"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -254,19 +336,3 @@
     </template>
   </div>
 </template>
-
-<style scoped>
-  .field {
-    background: var(--v0-surface-tint);
-    border: 1px solid color-mix(in srgb, var(--v0-divider) 50%, transparent);
-    border-radius: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    color: var(--v0-on-surface);
-    font-family: ui-monospace, monospace;
-  }
-  .field:focus-visible {
-    outline: 2px solid var(--v0-primary);
-    outline-offset: 1px;
-  }
-</style>
