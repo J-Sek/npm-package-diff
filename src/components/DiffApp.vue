@@ -7,6 +7,7 @@
   import { listVersions } from '@/lib/registry'
   import AutocompleteInput from './AutocompleteInput.vue'
   import CopyButton from './CopyButton.vue'
+  import LoadingState from './LoadingState.vue'
   import PierreFileDiff from './PierreFileDiff.vue'
   import PierreTree from './PierreTree.vue'
 
@@ -295,14 +296,7 @@
     </div>
 
     <!-- Status -->
-    <div
-      v-if="loading"
-      class="rounded-lg border border-subtle bg-surface px-4 py-3 mb-4 text-sm text-on-surface flex items-center gap-3"
-    >
-      <span class="inline-block w-3 h-3 rounded-full bg-primary animate-pulse" />
-      <span class="font-medium capitalize">{{ stage }}</span>
-      <span class="opacity-60 font-mono text-xs">{{ detail }}</span>
-    </div>
+    <LoadingState v-if="loading" class="mb-4" :detail="detail" :stage="stage" />
 
     <div
       v-if="error"
