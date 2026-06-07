@@ -218,7 +218,7 @@
     <div class="relative rounded-xl border border-subtle bg-surface p-5 mb-4">
       <div class="grid gap-x-3 gap-y-2 sm:grid-cols-[1fr_auto_1fr] items-end">
         <div>
-          <label class="block text-xs font-medium uppercase tracking-wide text-on-surface opacity-50 mb-2">
+          <label class="block text-xs font-medium uppercase tracking-wide text-on-surface opacity-70 mb-2">
             Base (A)
           </label>
 
@@ -256,7 +256,7 @@
         </button>
 
         <div>
-          <label class="block text-xs font-medium uppercase tracking-wide text-on-surface opacity-50 mb-2">
+          <label class="block text-xs font-medium uppercase tracking-wide text-on-surface opacity-70 mb-2">
             Compare (B)
           </label>
 
@@ -285,7 +285,7 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-x-2 gap-y-2 mt-4">
-        <span class="text-xs font-medium uppercase tracking-wide text-on-surface opacity-50 mr-1">
+        <span class="text-xs font-medium uppercase tracking-wide text-on-surface opacity-70 mr-1">
           Exclude
         </span>
 
