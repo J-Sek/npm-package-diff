@@ -64,6 +64,7 @@ export function useDiff () {
             result.value = msg.result
             loading.value = false
             stage.value = 'done'
+            aborting.value = false
             resolve(msg.result)
 
             break
@@ -73,6 +74,7 @@ export function useDiff () {
             error.value = msg.message
             loading.value = false
             stage.value = 'error'
+            aborting.value = false
             reject(new Error(msg.message))
 
             break
