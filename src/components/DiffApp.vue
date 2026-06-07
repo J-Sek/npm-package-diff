@@ -11,8 +11,8 @@
   import PierreFileDiff from './PierreFileDiff.vue'
   import PierreTree from './PierreTree.vue'
 
-  const { result, loading, stage, detail, error, compare } = useDiff()
   const { recent, remember } = useRecentPackages()
+  const { abort, aborting, result, loading, stage, detail, error, compare } = useDiff()
 
   const currentYear = new Date().getFullYear()
 
@@ -221,7 +221,7 @@
     </header>
 
     <!-- Inputs -->
-    <div class="rounded-xl border border-subtle bg-surface p-5 mb-4">
+    <div class="relative rounded-xl border border-subtle bg-surface p-5 mb-4">
       <div class="grid gap-x-3 gap-y-2 sm:grid-cols-[1fr_auto_1fr] items-end">
         <div>
           <label class="block text-xs font-medium uppercase tracking-wide text-on-surface opacity-50 mb-2">
@@ -307,20 +307,49 @@
         </label>
 
         <CopyButton
-          class="ml-auto"
+          class="ml-auto -mr-2 opacity-25 hover:opacity-100 focus:opacity-100"
           :disabled="!canShare"
           label="Copy shareable link"
+          size="sm"
           :value="shareUrl"
         />
 
-        <button
-          class="px-5 py-2 rounded-lg bg-primary text-on-primary font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-          :disabled="loading"
-          type="button"
-          @click="run"
-        >
-          {{ loading ? 'Diffing…' : 'Compare' }}
-        </button>
+        <div class="relative">
+          <button
+            class="flex w-36 items-center justify-center px-5 py-2 font-medium rounded-lg transition-[background-color,opacity] disabled:opacity-50"
+            :class="[
+              aborting ? 'bg-warning text-on-warning' : 'bg-primary text-on-primary hover:opacity-90',
+              loading && !aborting ? 'pr-8' : '',
+            ]"
+            :disabled="loading"
+            type="button"
+            @click="run"
+          >
+            {{ aborting ? 'Aborting…' : loading ? 'Diffing…' : 'Compare' }}
+          </button>
+
+          <button
+            v-show="loading && !aborting"
+            aria-label="Abort"
+            class="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-md bg-error text-on-error hover:opacity-90 transition-opacity"
+            title="Abort"
+            type="button"
+            @click="abort"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="1em"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="1em"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -339,7 +368,13 @@
     </div>
 
     <!-- Status -->
-    <LoadingState v-if="loading" class="mb-4" :detail="detail" :stage="stage" />
+    <LoadingState
+      v-if="loading"
+      :aborting="aborting"
+      class="mb-4"
+      :detail="detail"
+      :stage="stage"
+    />
 
     <div
       v-if="error"

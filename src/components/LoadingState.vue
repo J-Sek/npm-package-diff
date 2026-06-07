@@ -4,6 +4,8 @@
     stage?: string
     /** Fine-grained detail line shown beneath the stage. */
     detail?: string
+    /** Whether the run is being aborted — recolours to warn and overrides the stage label. */
+    aborting?: boolean
   }>()
 </script>
 
@@ -11,7 +13,8 @@
   <div class="loading-state flex flex-col items-center justify-center gap-4 min-h-[400px] text-center">
     <svg
       aria-hidden="true"
-      class="text-primary"
+      class="transition-colors"
+      :class="aborting ? 'text-warning' : 'text-primary'"
       fill="currentColor"
       height="48"
       viewBox="0 0 24 24"
@@ -70,8 +73,9 @@
       </ellipse>
     </svg>
 
-    <div v-if="stage || detail" class="flex flex-col items-center gap-1">
-      <span v-if="stage" class="font-medium capitalize text-on-surface">{{ stage }}</span>
+    <div v-if="aborting || stage || detail" class="flex flex-col items-center gap-1">
+      <span v-if="aborting" class="font-medium text-warning">Aborting…</span>
+      <span v-else-if="stage" class="font-medium capitalize text-on-surface">{{ stage }}</span>
       <span v-if="detail" class="opacity-60 font-mono text-xs text-on-surface-variant">{{ detail }}</span>
     </div>
   </div>

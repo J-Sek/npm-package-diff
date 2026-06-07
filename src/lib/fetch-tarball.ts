@@ -15,7 +15,7 @@ export interface FetchResult {
   fromCache: boolean
 }
 
-export async function fetchTarball (url: string): Promise<FetchResult> {
+export async function fetchTarball (url: string, abortController: AbortController): Promise<FetchResult> {
   if (cacheAvailable) {
     try {
       const cache = await caches.open(CACHE_NAME)
@@ -35,7 +35,9 @@ export async function fetchTarball (url: string): Promise<FetchResult> {
     }
   }
 
-  const res = await fetch(url)
+  const res = await fetch(url, {
+    signal: abortController.signal,
+  })
   if (!res.ok) {
     throw new Error(`Tarball fetch failed: ${res.status}`)
   }

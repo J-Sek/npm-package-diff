@@ -34,7 +34,7 @@
 <template>
   <button
     :aria-label="copied ? copiedLabel : label"
-    class="inline-flex items-center justify-center shrink-0 border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    class="inline-flex items-center justify-center shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
     :class="[
       size === 'sm' ? 'w-7 h-7 rounded-md' : 'w-9 h-9 rounded-lg',
       copied

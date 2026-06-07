@@ -5,6 +5,7 @@
 
 import type { TarEntry } from './tar'
 import type { DiffResult, FileEntry, PkgRef, Scope } from './types'
+import { checkAborted } from '@/lib/check-aborted'
 import { diffText } from './wasm-diff'
 
 const MAX_PATCH = 100_000
@@ -61,7 +62,7 @@ function countPatch (patch: string): { added: number, removed: number } {
   return { added, removed }
 }
 
-function toMap (entries: TarEntry[]): Map<string, Uint8Array> {
+async function toMap (entries: TarEntry[], abortController: AbortController): Promise<Map<string, Uint8Array>> {
   const map = new Map<string, Uint8Array>()
   for (const e of entries) {
     const path = normalize(e.name)
@@ -83,12 +84,16 @@ export async function buildDiff (
   a: ExtractedPkg,
   b: ExtractedPkg,
   exclude: string[],
+  abortController: AbortController,
 ): Promise<DiffResult> {
   const matchers = exclude.map(g => globToRegExp(g))
   const excluded = (path: string) => matchers.some(re => re.test(path))
 
-  const mapA = toMap(a.entries)
-  const mapB = toMap(b.entries)
+  const mapA = await toMap(a.entries, abortController)
+  await checkAborted(abortController)
+
+  const mapB = await toMap(b.entries, abortController)
+  await checkAborted(abortController)
 
   const paths = new Set<string>()
   for (const p of mapA.keys()) {
@@ -119,8 +124,12 @@ export async function buildDiff (
         files.push({ path, scope: scopeOf(path), status: 'modified', added: 0, removed: 0, binary: true })
         continue
       }
-      const full = await diffText(decoder.decode(av), decoder.decode(bv))
-      const { added, removed } = countPatch(full)
+      await checkAborted(abortController)
+
+      const full = await diffText(decoder.decode(av), decoder.decode(bv), abortController)
+      await checkAborted(abortController)
+
+      const { added, removed } = countPatch(full!)
       linesAdded += added
       linesRemoved += removed
       files.push({
@@ -130,8 +139,8 @@ export async function buildDiff (
         added,
         removed,
         binary: false,
-        patch: full.length > MAX_PATCH ? full.slice(0, MAX_PATCH) : full,
-        truncated: full.length > MAX_PATCH,
+        patch: full!.length > MAX_PATCH ? full!.slice(0, MAX_PATCH) : full,
+        truncated: full!.length > MAX_PATCH,
       })
     } else if (bv && !av) {
       // Added in B.
@@ -139,7 +148,9 @@ export async function buildDiff (
       const text = binary ? '' : decoder.decode(bv)
       const added = countLines(text)
       linesAdded += added
-      const patch = binary ? undefined : await diffText('', text)
+      const patch = binary ? undefined : await diffText('', text, abortController)
+      await checkAborted(abortController)
+
       files.push({
         path,
         scope: scopeOf(path),
@@ -156,7 +167,9 @@ export async function buildDiff (
       const text = binary ? '' : decoder.decode(av)
       const removed = countLines(text)
       linesRemoved += removed
-      const patch = binary ? undefined : await diffText(text, '')
+      const patch = binary ? undefined : await diffText(text, '', abortController)
+      await checkAborted(abortController)
+
       files.push({
         path,
         scope: scopeOf(path),

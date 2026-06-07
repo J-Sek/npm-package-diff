@@ -27,12 +27,13 @@ interface Packument {
 
 const packumentCache = new Map<string, Promise<Packument>>()
 
-function fetchPackument (name: string): Promise<Packument> {
+function fetchPackument (name: string, abortController?: AbortController): Promise<Packument> {
   const key = name.toLowerCase()
   let pending = packumentCache.get(key)
   if (!pending) {
     pending = fetch(`${REGISTRY}/${encodeName(name)}`, {
       headers: { Accept: 'application/json' },
+      signal: abortController?.signal,
     }).then(async res => {
       if (!res.ok) {
         throw new Error(`Registry returned ${res.status} for "${name}"`)
@@ -51,8 +52,8 @@ export interface ResolvedVersion {
 }
 
 /** Resolve a version or dist-tag (e.g. `latest`) to a concrete tarball URL. */
-export async function resolveTarball (name: string, versionOrTag: string): Promise<ResolvedVersion> {
-  const pack = await fetchPackument(name)
+export async function resolveTarball (name: string, versionOrTag: string, abortController?: AbortController): Promise<ResolvedVersion> {
+  const pack = await fetchPackument(name, abortController)
   const version = pack['dist-tags']?.[versionOrTag] ?? versionOrTag
   const entry = pack.versions[version]
   if (!entry) {

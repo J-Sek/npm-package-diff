@@ -78,6 +78,7 @@
 
       <CopyButton
         v-if="shareUrl"
+        class="border"
         label="Copy link to this file"
         size="sm"
         :value="shareUrl"

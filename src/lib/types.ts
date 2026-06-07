@@ -71,9 +71,14 @@ export type WorkerRequest = {
   a: ComparePkgInput
   b: ComparePkgInput
   options: CompareOptions
+} | {
+  type: 'abort'
+  id: number
 }
 
 export type WorkerResponse
   = | { type: 'progress', id: number, stage: string, detail?: string }
     | { type: 'result', id: number, result: DiffResult }
     | { type: 'error', id: number, message: string }
+    | { type: 'aborting', id: number }
+    | { type: 'aborted', id: number }
