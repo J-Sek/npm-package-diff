@@ -5,7 +5,7 @@ backend. Tarballs are fetched straight from the npm registry, unpacked, and
 diffed client-side, with the line-diffing done by a **Rust → WebAssembly**
 module. The whole app is a static site you can drop on any host.
 
-**[Try it live → pkg-diff.netlify.app](https://pkg-diff.netlify.app/)**
+**[pkg-diff.netlify.app](https://pkg-diff.netlify.app/)**
 
 ![pkg-diff screenshot](./screenshot.png)
 
