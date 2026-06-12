@@ -121,12 +121,14 @@ export async function buildDiff (
       }
       const binary = isBinary(av) || isBinary(bv)
       if (binary) {
-        files.push({ path, scope: scopeOf(path), status: 'modified', added: 0, removed: 0, binary: true })
+        files.push({ path, scope: scopeOf(path), status: 'modified', added: 0, removed: 0, linesA: 0, linesB: 0, binary: true })
         continue
       }
       await checkAborted(abortController)
 
-      const full = await diffText(decoder.decode(av), decoder.decode(bv), abortController)
+      const textA = decoder.decode(av)
+      const textB = decoder.decode(bv)
+      const full = await diffText(textA, textB, abortController)
       await checkAborted(abortController)
 
       const { added, removed } = countPatch(full!)
@@ -138,6 +140,8 @@ export async function buildDiff (
         status: 'modified',
         added,
         removed,
+        linesA: countLines(textA),
+        linesB: countLines(textB),
         binary: false,
         patch: full!.length > MAX_PATCH ? full!.slice(0, MAX_PATCH) : full,
         truncated: full!.length > MAX_PATCH,
@@ -156,6 +160,8 @@ export async function buildDiff (
         status: 'added',
         added,
         removed: 0,
+        linesA: 0,
+        linesB: added,
         binary,
         patch: patch && patch.length > MAX_PATCH ? patch.slice(0, MAX_PATCH) : patch,
         truncated: !!patch && patch.length > MAX_PATCH,
@@ -174,6 +180,8 @@ export async function buildDiff (
         status: 'removed',
         added: 0,
         removed,
+        linesA: removed,
+        linesB: 0,
         binary,
         patch: patch && patch.length > MAX_PATCH ? patch.slice(0, MAX_PATCH) : patch,
         truncated: !!patch && patch.length > MAX_PATCH,

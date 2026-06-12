@@ -29,6 +29,10 @@ export interface FileEntry {
   added: number
   /** Lines removed (red). */
   removed: number
+  /** Total line count of the A side (0 for added files). */
+  linesA: number
+  /** Total line count of the B side (0 for removed files). */
+  linesB: number
   /** True when the file looks binary and was not line-diffed. */
   binary: boolean
   /** Unified diff body. Omitted for binary files; may be truncated. */

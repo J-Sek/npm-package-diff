@@ -1,11 +1,28 @@
 <script setup lang="ts">
-  import type { FileEntry, FileStatus } from '@/lib/types'
+  import type { FileEntry, FileStatus, PkgRef } from '@/lib/types'
   import { FileDiff, processFile } from '@pierre/diffs'
   import { useMediaQuery } from '@vuetify/v0'
   import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
   import CopyButton from './CopyButton.vue'
 
-  const props = defineProps<{ file: FileEntry, shareUrl?: string }>()
+  const props = defineProps<{ file: FileEntry, pkgA?: PkgRef, pkgB?: PkgRef, shareUrl?: string }>()
+
+  const MIN_LINES_FOR_RAW = 20_000
+
+  function isRaw (lines: number) {
+    return lines >= MIN_LINES_FOR_RAW
+  }
+
+  function fileUrl (pkg: PkgRef, path: string, lines: number) {
+    if (isRaw(lines)) {
+      return `https://cdn.jsdelivr.net/npm/${pkg.name}@${pkg.version}/${path}`
+    }
+    return `https://npmx.dev/package-code/${pkg.name}/v/${pkg.version}/${path.replaceAll('/', '%2F')}`
+  }
+
+  function fileTitle (side: string, lines: number) {
+    return isRaw(lines) ? `Open ${side} on jsdelivr.net` : `Open ${side} on npmx.dev`
+  }
 
   const host = ref<HTMLElement>()
   let instance: FileDiff | null = null
@@ -84,6 +101,24 @@
       >{{ headerLabel[file.status][0] }}</span>
 
       <span class="font-mono text-sm text-on-surface truncate mr-auto">{{ file.path }}</span>
+
+      <a
+        v-if="pkgA && file.status !== 'added'"
+        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-subtle text-xs text-on-surface-variant hover:text-on-surface hover:border-primary transition-colors shrink-0"
+        :href="fileUrl(pkgA, file.path, file.linesA)"
+        rel="noopener noreferrer"
+        target="_blank"
+        :title="fileTitle('A', file.linesA)"
+      >A <span aria-hidden="true">↗</span></a>
+
+      <a
+        v-if="pkgB && file.status !== 'removed'"
+        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-subtle text-xs text-on-surface-variant hover:text-on-surface hover:border-primary transition-colors shrink-0"
+        :href="fileUrl(pkgB, file.path, file.linesB)"
+        rel="noopener noreferrer"
+        target="_blank"
+        :title="fileTitle('B', file.linesB)"
+      >B <span aria-hidden="true">↗</span></a>
 
       <CopyButton
         v-if="shareUrl"

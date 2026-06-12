@@ -444,6 +444,8 @@
             v-if="activeFile"
             :key="activeFile.path"
             :file="activeFile"
+            :pkg-a="result.a"
+            :pkg-b="result.b"
             :share-url="activeFileShareUrl"
           />
 
