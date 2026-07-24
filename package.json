@@ -2,7 +2,7 @@
   "name": "pkg-diff",
   "private": true,
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "license": "GPL-3.0-only",
   "packageManager": "pnpm@10.26.1",
   "scripts": {
@@ -16,24 +16,24 @@
     "lint:fix": "eslint --fix"
   },
   "dependencies": {
-    "@fontsource-variable/recursive": "^5.2.8",
-    "@pierre/diffs": "^1.2.7",
-    "@pierre/trees": "1.0.0-beta.4",
+    "@fontsource-variable/recursive": "5.3.0",
+    "@pierre/diffs": "1.2.12",
+    "@pierre/trees": "1.0.0-beta.5",
     "@plausible-analytics/tracker": "^0.4.5",
-    "@vuetify/v0": "latest",
-    "vue": "^3.5.30"
+    "@vuetify/v0": "1.0.1",
+    "vue": "3.5.40"
   },
   "devDependencies": {
-    "@tsconfig/node22": "^22.0.5",
-    "@types/node": "^24.12.0",
+    "@tsconfig/node22": "22.0.5",
+    "@types/node": "24.12.0",
     "@unocss/transformer-directives": "^66.6.6",
-    "@vitejs/plugin-vue": "^6.0.5",
-    "@vue/tsconfig": "^0.9.0",
+    "@vitejs/plugin-vue": "6.0.8",
+    "@vue/tsconfig": "0.9.1",
     "eslint": "^9.39.4",
     "eslint-config-vuetify": "^4.3.4",
     "typescript": "~5.9.3",
     "unocss": "^66.6.6",
-    "vite": "^8.0.0",
-    "vue-tsc": "^3.2.5"
+    "vite": "8.1.5",
+    "vue-tsc": "3.3.8"
   }
 }
