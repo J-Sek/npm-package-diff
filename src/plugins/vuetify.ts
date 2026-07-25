@@ -1,34 +1,10 @@
 import { createThemePlugin } from '@vuetify/v0'
+import { pierreThemes } from '@/lib/pierre-themes'
 
 export default createThemePlugin({
   default: 'dark',
   target: 'html',
   themes: {
-    light: {
-      dark: false,
-      colors: {
-        'primary': '#3b82f6',
-        'secondary': '#64748b',
-        'error': '#ef4444',
-        'info': '#1867c0',
-        'success': '#22c55e',
-        'warning': '#f59e0b',
-        'background': '#f5f5f5',
-        'surface': '#ffffff',
-        'surface-tint': '#f5f5f5',
-        'surface-variant': '#eeeeee',
-        'divider': '#e0e0e0',
-        'on-primary': '#ffffff',
-        'on-secondary': '#ffffff',
-        'on-error': '#ffffff',
-        'on-info': '#ffffff',
-        'on-success': '#ffffff',
-        'on-warning': '#1a1a1a',
-        'on-background': '#212121',
-        'on-surface': '#212121',
-        'on-surface-variant': '#666666',
-      },
-    },
     dark: {
       dark: true,
       colors: {
@@ -54,5 +30,6 @@ export default createThemePlugin({
         'on-surface-variant': '#a0a0a0',
       },
     },
+    ...pierreThemes,
   },
 })

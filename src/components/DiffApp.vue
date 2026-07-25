@@ -6,12 +6,14 @@
   import { useDiff } from '@/composables/useDiff'
   import { useRecentPackages } from '@/composables/useRecentPackages'
   import { getRepoSlug, listVersions, resolveTarball } from '@/lib/registry'
+  import { ACHROMATIC_THEME, themeChoice } from '@/lib/storage'
   import AutocompleteInput from './AutocompleteInput.vue'
   import CopyButton from './CopyButton.vue'
   import ExcludeFilters from './ExcludeFilters.vue'
   import LoadingState from './LoadingState.vue'
   import PierreFileDiff from './PierreFileDiff.vue'
   import PierreTree from './PierreTree.vue'
+  import ThemeMenu from './ThemeMenu.vue'
 
   const { recent, remember } = useRecentPackages()
   const { abort, aborting, result, loading, stage, detail, error, compare } = useDiff()
@@ -131,6 +133,10 @@
   // emitted array plain (not a reactive proxy) so it survives postMessage's
   // structured clone into the worker.
   const excludePatterns = shallowRef<string[]>([])
+
+  // Pierre's syntax tokens and file icons come from its own shadow-DOM styles, so
+  // the grayscale theme has to desaturate the whole pane to reach them.
+  const achromatic = computed(() => themeChoice.value === ACHROMATIC_THEME)
 
   const scope = ref<Scope[]>(['lib', 'dist', 'other'])
   const scopeOptions: { id: Scope, label: string }[] = [
@@ -398,30 +404,33 @@
         </span>
       </div>
 
-      <!-- Scope filter -->
-      <Selection.Root v-slot="{ attrs }" v-model="scope" multiple>
-        <div v-bind="attrs" aria-label="Filter by scope" class="flex gap-2 mb-4">
-          <Selection.Item
-            v-for="opt in scopeOptions"
-            :key="opt.id"
-            v-slot="{ isSelected, toggle }"
-            :value="opt.id"
-          >
-            <button
-              :aria-pressed="isSelected"
-              class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
-              :class="isSelected
-                ? 'bg-primary text-on-primary border-primary'
-                : 'bg-surface-tint hover:bg-surface-variant border-subtle text-on-surface'"
-              type="button"
-              @click="toggle"
+      <div class="flex items-center gap-2 mb-4">
+        <Selection.Root v-slot="{ attrs }" v-model="scope" multiple>
+          <div v-bind="attrs" aria-label="Filter by scope" class="flex gap-2">
+            <Selection.Item
+              v-for="opt in scopeOptions"
+              :key="opt.id"
+              v-slot="{ isSelected, toggle }"
+              :value="opt.id"
             >
-              {{ opt.label }}
-              <span class="opacity-60">({{ scopeCounts[opt.id] }})</span>
-            </button>
-          </Selection.Item>
-        </div>
-      </Selection.Root>
+              <button
+                :aria-pressed="isSelected"
+                class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
+                :class="isSelected
+                  ? 'bg-primary text-on-primary border-primary'
+                  : 'bg-surface-tint hover:bg-surface-variant border-subtle text-on-surface'"
+                type="button"
+                @click="toggle"
+              >
+                {{ opt.label }}
+                <span class="opacity-60">({{ scopeCounts[opt.id] }})</span>
+              </button>
+            </Selection.Item>
+          </div>
+        </Selection.Root>
+
+        <ThemeMenu class="ml-auto" />
+      </div>
 
       <!-- Sidebar (tree) + diff content -->
       <div
@@ -434,6 +443,7 @@
       <div
         v-else
         class="grid grid-cols-[minmax(220px,300px)_1fr] gap-4 h-[70vh] min-h-[400px]"
+        :class="{ grayscale: achromatic }"
       >
         <aside class="rounded-xl border border-subtle bg-surface overflow-hidden">
           <PierreTree :active="activePath" :files="visibleFiles" @select="activePath = $event" />

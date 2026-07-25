@@ -2,7 +2,8 @@
   import type { FileEntry, FileStatus, PkgRef } from '@/lib/types'
   import { FileDiff, processFile } from '@pierre/diffs'
   import { useMediaQuery } from '@vuetify/v0'
-  import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+  import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+  import { ACHROMATIC_THEME, themeChoice } from '@/lib/storage'
   import CopyButton from './CopyButton.vue'
 
   const props = defineProps<{ file: FileEntry, pkgA?: PkgRef, pkgB?: PkgRef, shareUrl?: string }>()
@@ -31,6 +32,8 @@
   // colour alone no longer distinguishes additions from deletions. Switch to
   // Pierre's literal +/- glyphs and drop the now-meaningless backgrounds.
   const { matches: forcedColors } = useMediaQuery('(forced-colors: active)')
+
+  const glyphIndicators = computed(() => forcedColors.value || themeChoice.value === ACHROMATIC_THEME)
 
   const headerLabel: Record<FileStatus, string> = {
     added: 'Added',
@@ -65,7 +68,7 @@
       themeType: 'dark',
       overflow: 'scroll',
       disableFileHeader: true,
-      diffIndicators: forcedColors.value ? 'classic' : 'bars',
+      diffIndicators: glyphIndicators.value ? 'classic' : 'bars',
       disableBackground: forcedColors.value,
     })
 
@@ -78,8 +81,9 @@
   onMounted(render)
 
   // Recreate the instance per file (cheap, avoids stale internal DOM/state) and
-  // when forced-colors toggles, since diffIndicators is a constructor option.
-  watch([() => props.file, forcedColors], () => {
+  // whenever the indicator mode flips, since diffIndicators is a constructor
+  // option.
+  watch([() => props.file, forcedColors, glyphIndicators], () => {
     instance?.cleanUp()
     instance = null
     render()

@@ -1,5 +1,15 @@
 <script lang="ts" setup>
+  import { useTheme } from '@vuetify/v0'
+  import { watch } from 'vue'
   import DiffApp from '@/components/DiffApp.vue'
+  import { DEFAULT_THEME, themeChoice } from '@/lib/storage'
+
+  const theme = useTheme()
+
+  watch(themeChoice, id => {
+    if (id in theme.colors.value) theme.select(id)
+    else themeChoice.value = DEFAULT_THEME
+  }, { immediate: true })
 </script>
 
 <template>
