@@ -12,12 +12,12 @@ jobs:
       packages: write
       deployments: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: vuetifyjs/setup-action@cb5ac088588387e65433a762de90c0b06d878677 # master
       - run: pnpm run build
       - uses: vuetifyjs/coolify-action@37a9c5a532f4c489e941d43edffd73fd2af00ec2 # master
         with:
           imageName: pkg-diff
-          token: ${{ secrets.GITHUB_TOKEN  }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           coolifyWebhook: ${{ secrets.COOLIFY_WEBHOOK }}
           coolifySecret: ${{ secrets.COOLIFY_TOKEN }}
