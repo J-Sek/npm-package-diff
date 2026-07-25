@@ -21,7 +21,8 @@ module. The whole app is a static site you can drop on any host.
 Example prompt:
 
 ```
-use `pnpm diff primevue@4.5.5 5.0.0` command and drill a bit deeper to give me high-level overview of the effective changes. I am only interested in things affecting my app based on PrimeVue
+use `pnpm diff vuetify@3.12.11 latest` command and drill a bit deeper to give me high-level overview
+of the effective changes. I am only interested in things affecting my app based on Vuetify framework
 ```
 
 `cli/pkg-diff.ts` runs the same pipeline headless on Node.js (requires v24.x) — no build step needed.

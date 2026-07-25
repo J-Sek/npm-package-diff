@@ -29,7 +29,9 @@ Usage
   pkg-diff <a> <b> [options]
 
   <a> <b>   name@version; the version defaults to \`latest\` and accepts dist-tags.
-            A bare version on <b> reuses <a>'s name:  pkg-diff vuetify@3.7.0 3.8.0
+            A bare version or dist-tag on <b> reuses <a>'s name:
+              pkg-diff vuetify@3.7.0 3.8.0
+              pkg-diff vuetify@3.12.11 latest
 
 The default output is a cheap summary — every changed file with its line counts
 and patch size, so you can pick what to read before spending anything on it.
@@ -66,10 +68,13 @@ export interface LineRange {
   to: number
 }
 
+// Common dist-tags, recognized as bare versions on <b> even without a leading digit.
+const DIST_TAGS = new Set(['latest', 'next', 'dev'])
+
 /** `vuetify@3.7.0`, `vuetify`, `@vuetify/nightly@1.2.3`, or a bare version. */
 export function parseRef (input: string, fallbackName?: string): Ref {
-  // A leading digit means a bare version — reuse the other side's package name.
-  if (fallbackName && /^\d/.test(input)) {
+  // A leading digit or a known dist-tag means a bare version — reuse the other side's package name.
+  if (fallbackName && (/^\d/.test(input) || DIST_TAGS.has(input))) {
     return { name: fallbackName, version: input }
   }
   const at = input.lastIndexOf('@')

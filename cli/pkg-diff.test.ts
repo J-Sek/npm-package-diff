@@ -12,8 +12,11 @@ test('parseRef', () => {
   assert.deepEqual(parseRef('@vuetify/nightly'), { name: '@vuetify/nightly', version: 'latest' })
   assert.deepEqual(parseRef('@vuetify/nightly@1.2.3'), { name: '@vuetify/nightly', version: '1.2.3' })
   assert.deepEqual(parseRef('3.8.0', 'vuetify'), { name: 'vuetify', version: '3.8.0' })
-  // `next` is also a real package name, so only a leading digit means "version".
-  assert.deepEqual(parseRef('next', 'vuetify'), { name: 'next', version: 'latest' })
+  assert.deepEqual(parseRef('latest', 'vuetify'), { name: 'vuetify', version: 'latest' })
+  assert.deepEqual(parseRef('next', 'vuetify'), { name: 'vuetify', version: 'next' })
+  assert.deepEqual(parseRef('dev', 'vuetify'), { name: 'vuetify', version: 'dev' })
+  // No fallback name (first positional): dist-tag words are still just package names.
+  assert.deepEqual(parseRef('next'), { name: 'next', version: 'latest' })
 })
 
 test('resolveMode', () => {
