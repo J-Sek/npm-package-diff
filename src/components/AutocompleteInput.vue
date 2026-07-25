@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { createFilter, useClickOutside } from '@vuetify/v0'
+  import { createFilter, useClickOutside, usePopover } from '@vuetify/v0'
   import { computed, ref, watch } from 'vue'
 
   const props = withDefaults(defineProps<{
@@ -24,9 +24,13 @@
   const model = defineModel<string>({ required: true })
 
   const root = ref<HTMLElement>()
+  const list = ref<HTMLElement>()
   const open = ref(false)
   const expanded = ref(false)
   const highlighted = ref(-1)
+
+  const { anchorStyles, contentAttrs, contentStyles, attach } = usePopover({ isOpen: open })
+  attach(list)
 
   // Case-insensitive substring match via v0's filter (returns all items on an
   // empty query).
@@ -98,8 +102,9 @@
 </script>
 
 <template>
-  <div ref="root" class="relative">
+  <div ref="root">
     <input
+      :aria-controls="contentAttrs.id"
       :aria-expanded="open"
       :aria-label="ariaLabel"
       autocomplete="off"
@@ -107,6 +112,7 @@
       :placeholder="placeholder"
       role="combobox"
       spellcheck="false"
+      :style="anchorStyles"
       :value="model"
       @focus="show"
       @input="onInput"
@@ -114,9 +120,12 @@
     >
 
     <div
-      v-if="open"
-      class="absolute z-20 mt-1 w-full max-h-72 overflow-auto rounded-lg border border-subtle bg-surface shadow-lg py-1"
+      v-bind="contentAttrs"
+      ref="list"
+      class="min-w-55 max-h-72 overflow-auto rounded-lg border border-subtle bg-surface shadow-lg py-1"
+      popover="manual"
       role="listbox"
+      :style="[contentStyles, { width: 'anchor-size(width)', marginTop: '0.25rem' }]"
     >
       <div v-if="loading" class="px-3 py-2 text-xs text-on-surface-variant italic">
         Loading…

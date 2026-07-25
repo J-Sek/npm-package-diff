@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { useClickOutside, useTheme } from '@vuetify/v0'
+  import { useClickOutside, usePopover, useTheme } from '@vuetify/v0'
   import { computed, ref } from 'vue'
   import { ACHROMATIC_THEME, DEFAULT_THEME, themeChoice } from '@/lib/storage'
 
@@ -20,7 +20,14 @@
   )
 
   const root = ref<HTMLElement>()
+  const menu = ref<HTMLElement>()
   const open = ref(false)
+
+  const { anchorStyles, contentAttrs, contentStyles, attach } = usePopover({
+    isOpen: open,
+    positionArea: 'bottom span-left',
+  })
+  attach(menu)
 
   function pick (id: string) {
     themeChoice.value = id
@@ -33,12 +40,14 @@
 </script>
 
 <template>
-  <div ref="root" class="relative" @keydown.esc="open = false">
+  <div ref="root" @keydown.esc="open = false">
     <button
+      :aria-controls="contentAttrs.id"
       :aria-expanded="open"
       aria-haspopup="menu"
       aria-label="Theme"
       class="relative inline-flex items-center justify-center w-8.5 h-8.5 rounded-lg border border-subtle bg-surface-tint text-on-surface hover:bg-surface-variant hover:border-primary transition-colors"
+      :style="anchorStyles"
       title="Theme"
       type="button"
       @click="open = !open"
@@ -65,9 +74,12 @@
     </button>
 
     <div
-      v-if="open"
-      class="absolute right-0 z-20 mt-1 w-max max-h-80 overflow-y-auto [scrollbar-gutter:stable] rounded-lg border border-subtle bg-surface shadow-lg py-1"
+      v-bind="contentAttrs"
+      ref="menu"
+      class="w-max max-h-80 overflow-y-auto [scrollbar-gutter:stable] rounded-lg border border-subtle bg-surface shadow-lg py-1"
+      popover="manual"
       role="menu"
+      :style="[contentStyles, { marginTop: '0.25rem' }]"
     >
       <button
         v-for="option in options"
