@@ -16,7 +16,7 @@ function normalize (name: string): string {
 }
 
 function scopeOf (path: string): Scope {
-  const seg = path.split('/')[0]
+  const seg = path.split('/', 1)[0]
   if (seg === 'lib') {
     return 'lib'
   }
