@@ -19,6 +19,7 @@
   const { abort, aborting, result, loading, stage, detail, error, compare } = useDiff()
 
   const currentYear = new Date().getFullYear()
+  const version = __APP_VERSION__
 
   type Side = 'a' | 'b'
 
@@ -475,6 +476,10 @@
 
       <span aria-hidden="true" class="opacity-40">•</span>
 
+      <span>v{{ version }}</span>
+
+      <span aria-hidden="true" class="opacity-40">•</span>
+
       <a
         class="inline-flex items-center gap-2 hover:text-on-surface transition-colors"
         href="https://github.com/vuetifyjs/pkg-diff"
@@ -494,7 +499,6 @@
         <span>Source</span>
         <span class="sr-only"> (opens in new tab)</span>
       </a>
-
     </footer>
   </div>
 </template>
