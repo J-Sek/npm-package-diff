@@ -499,6 +499,18 @@
         <span>Source</span>
         <span class="sr-only"> (opens in new tab)</span>
       </a>
+
+      <span aria-hidden="true" class="opacity-40">•</span>
+
+      <a
+        class="inline-flex items-center gap-2 hover:text-on-surface transition-colors"
+        href="https://github.com/vuetifyjs/pkg-diff#cli-for-agents"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        <span>CLI for agents</span>
+        <span class="sr-only"> (opens in new tab)</span>
+      </a>
     </footer>
   </div>
 </template>

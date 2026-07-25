@@ -4,5 +4,5 @@ export default vuetify({
   ts: true,
 }).then(config => [
   ...config,
-  { ignores: ['scripts/**', 'wasm/**', 'dist/**'] },
+  { ignores: ['cli/**', 'scripts/**', 'wasm/**', 'dist/**'] },
 ])

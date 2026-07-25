@@ -33,6 +33,8 @@ export interface FileEntry {
   linesA: number
   /** Total line count of the B side (0 for removed files). */
   linesB: number
+  /** Size of the untruncated patch, so a consumer can budget before reading it. */
+  chars: number
   /** True when the file looks binary and was not line-diffed. */
   binary: boolean
   /** Unified diff body. Omitted for binary files; may be truncated. */
@@ -47,6 +49,8 @@ export interface DiffStats {
   filesModified: number
   linesAdded: number
   linesRemoved: number
+  /** Summed untruncated patch size across all files. */
+  chars: number
 }
 
 export interface DiffResult {
@@ -57,7 +61,7 @@ export interface DiffResult {
 }
 
 export interface CompareOptions {
-  /** Glob-ish patterns (supporting `*`) of paths to exclude, matched against the normalized path. */
+  /** gitignore-style glob patterns (`*`, `**`) of paths to exclude, matched against the normalized path. */
   exclude: string[]
 }
 

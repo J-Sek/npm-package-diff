@@ -3,10 +3,11 @@
  * Runs inside the worker. The only side-effecting dependency is the WASM diff.
  */
 
-import type { TarEntry } from './tar'
-import type { DiffResult, FileEntry, PkgRef, Scope } from './types'
-import { checkAborted } from '@/lib/check-aborted'
-import { diffText } from './wasm-diff'
+import type { TarEntry } from './tar.ts'
+import type { DiffResult, FileEntry, PkgRef, Scope } from './types.ts'
+import pm from 'picomatch/posix.js'
+import { checkAborted } from './check-aborted.ts'
+import { diffText } from './wasm-diff.ts'
 
 const MAX_PATCH = 100_000
 
@@ -26,9 +27,17 @@ function scopeOf (path: string): Scope {
   return 'other'
 }
 
-function globToRegExp (glob: string): RegExp {
-  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, String.raw`\$&`).replace(/\*/g, '.*')
-  return new RegExp(`^${escaped}$`)
+/**
+ * gitignore-style: a pattern with no `/` matches its basename at any depth.
+ * picomatch's own `basename` option does this but applies to the whole call,
+ * breaking any anchored pattern matched in the same set — so it's done per
+ * pattern here instead, before picomatch ever sees it.
+ */
+function matcher (globs: string[]): (path: string) => boolean {
+  if (globs.length === 0) {
+    return () => false
+  }
+  return pm(globs.map(g => (g.includes('/') ? g : `**/${g}`)))
 }
 
 function bytesEqual (a: Uint8Array, b: Uint8Array): boolean {
@@ -80,14 +89,24 @@ export interface ExtractedPkg {
   entries: TarEntry[]
 }
 
+export interface BuildOptions {
+  /** Cap on the stored `patch` string. `0` keeps the counts but drops the body. */
+  maxPatch?: number
+  /** When non-empty, only paths matching these globs are diffed. */
+  only?: string[]
+}
+
 export async function buildDiff (
   a: ExtractedPkg,
   b: ExtractedPkg,
   exclude: string[],
   abortController: AbortController,
+  options: BuildOptions = {},
 ): Promise<DiffResult> {
-  const matchers = exclude.map(g => globToRegExp(g))
-  const excluded = (path: string) => matchers.some(re => re.test(path))
+  const maxPatch = options.maxPatch ?? MAX_PATCH
+  const excluded = matcher(exclude)
+  const onlyMatch = options.only?.length ? matcher(options.only) : null
+  const included = (path: string) => !onlyMatch || onlyMatch(path)
 
   const mapA = await toMap(a.entries)
   await checkAborted(abortController)
@@ -96,20 +115,18 @@ export async function buildDiff (
   await checkAborted(abortController)
 
   const paths = new Set<string>()
-  for (const p of mapA.keys()) {
-    if (!excluded(p)) {
-      paths.add(p)
-    }
-  }
-  for (const p of mapB.keys()) {
-    if (!excluded(p)) {
-      paths.add(p)
+  for (const map of [mapA, mapB]) {
+    for (const p of map.keys()) {
+      if (!excluded(p) && included(p)) {
+        paths.add(p)
+      }
     }
   }
 
   const files: FileEntry[] = []
   let linesAdded = 0
   let linesRemoved = 0
+  let chars = 0
 
   for (const path of [...paths].toSorted()) {
     const av = mapA.get(path)
@@ -121,7 +138,7 @@ export async function buildDiff (
       }
       const binary = isBinary(av) || isBinary(bv)
       if (binary) {
-        files.push({ path, scope: scopeOf(path), status: 'modified', added: 0, removed: 0, linesA: 0, linesB: 0, binary: true })
+        files.push({ path, scope: scopeOf(path), status: 'modified', added: 0, removed: 0, linesA: 0, linesB: 0, chars: 0, binary: true })
         continue
       }
       await checkAborted(abortController)
@@ -134,6 +151,7 @@ export async function buildDiff (
       const { added, removed } = countPatch(full!)
       linesAdded += added
       linesRemoved += removed
+      chars += full!.length
       files.push({
         path,
         scope: scopeOf(path),
@@ -142,9 +160,10 @@ export async function buildDiff (
         removed,
         linesA: countLines(textA),
         linesB: countLines(textB),
+        chars: full!.length,
         binary: false,
-        patch: full!.length > MAX_PATCH ? full!.slice(0, MAX_PATCH) : full,
-        truncated: full!.length > MAX_PATCH,
+        patch: full!.length > maxPatch ? full!.slice(0, maxPatch) : full,
+        truncated: full!.length > maxPatch,
       })
     } else if (bv && !av) {
       const binary = isBinary(bv)
@@ -154,6 +173,8 @@ export async function buildDiff (
       const patch = binary ? undefined : await diffText('', text, abortController)
       await checkAborted(abortController)
 
+      const patchChars = patch ? patch.length : 0
+      chars += patchChars
       files.push({
         path,
         scope: scopeOf(path),
@@ -162,9 +183,10 @@ export async function buildDiff (
         removed: 0,
         linesA: 0,
         linesB: added,
+        chars: patchChars,
         binary,
-        patch: patch && patch.length > MAX_PATCH ? patch.slice(0, MAX_PATCH) : patch,
-        truncated: !!patch && patch.length > MAX_PATCH,
+        patch: patch && patch.length > maxPatch ? patch.slice(0, maxPatch) : patch,
+        truncated: !!patch && patch.length > maxPatch,
       })
     } else if (av && !bv) {
       const binary = isBinary(av)
@@ -174,6 +196,8 @@ export async function buildDiff (
       const patch = binary ? undefined : await diffText(text, '', abortController)
       await checkAborted(abortController)
 
+      const patchChars = patch ? patch.length : 0
+      chars += patchChars
       files.push({
         path,
         scope: scopeOf(path),
@@ -182,9 +206,10 @@ export async function buildDiff (
         removed,
         linesA: removed,
         linesB: 0,
+        chars: patchChars,
         binary,
-        patch: patch && patch.length > MAX_PATCH ? patch.slice(0, MAX_PATCH) : patch,
-        truncated: !!patch && patch.length > MAX_PATCH,
+        patch: patch && patch.length > maxPatch ? patch.slice(0, maxPatch) : patch,
+        truncated: !!patch && patch.length > maxPatch,
       })
     }
   }
@@ -199,6 +224,7 @@ export async function buildDiff (
       filesModified: files.filter(f => f.status === 'modified').length,
       linesAdded,
       linesRemoved,
+      chars,
     },
   }
 }

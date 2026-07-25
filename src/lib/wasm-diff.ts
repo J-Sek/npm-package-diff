@@ -6,7 +6,7 @@
  *   dealloc(ptr, len)
  *   diff(aPtr, aLen, bPtr, bLen) -> ptr to [u32 len][utf8 bytes]
  */
-import { checkAborted } from '@/lib/check-aborted'
+import { checkAborted } from './check-aborted.ts'
 
 interface DiffExports {
   memory: WebAssembly.Memory
@@ -16,6 +16,16 @@ interface DiffExports {
 }
 
 let exportsPromise: Promise<DiffExports> | null = null
+let injected: BufferSource | null = null
+
+/**
+ * Supply the module bytes directly, for hosts that can't fetch `BASE_URL`
+ * (Node: `import.meta.env` doesn't exist and `fetch` won't take a `file:` URL).
+ */
+export function setDiffWasm (bytes: BufferSource): void {
+  injected = bytes
+  exportsPromise = null
+}
 
 function wasmUrl (): string {
   // Resolves correctly even when the site is hosted under a sub-path.
@@ -23,6 +33,11 @@ function wasmUrl (): string {
 }
 
 async function load (abortController: AbortController): Promise<DiffExports> {
+  if (injected) {
+    const { instance } = await WebAssembly.instantiate(injected, {})
+    return instance.exports as unknown as DiffExports
+  }
+
   const res = await fetch(wasmUrl(), {
     signal: abortController.signal,
   })
