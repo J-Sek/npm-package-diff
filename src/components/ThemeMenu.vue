@@ -76,7 +76,7 @@
     <div
       v-bind="contentAttrs"
       ref="menu"
-      class="w-max max-h-80 overflow-y-auto [scrollbar-gutter:stable] rounded-lg border border-subtle bg-surface shadow-lg py-1"
+      class="w-max max-h-80 overflow-y-auto rounded-lg border border-subtle bg-surface shadow-lg py-1"
       popover="manual"
       role="menu"
       :style="[contentStyles, { marginTop: '0.25rem' }]"

@@ -88,8 +88,8 @@ export async function getRepoSlug (name: string): Promise<string | null> {
   return `${match[1]}/${match[2]}`
 }
 
-/** List published versions newest-first, plus available dist-tags. */
-export async function listVersions (name: string): Promise<{ versions: string[], tags: Record<string, string> }> {
+/** List published versions newest-first, plus available dist-tags and their publish times. */
+export async function listVersions (name: string): Promise<{ versions: string[], tags: Record<string, string>, time: Record<string, string> }> {
   const pack = await fetchPackument(name)
   const time = pack.time ?? {}
   const versions = Object.keys(pack.versions).toSorted((a, b) => {
@@ -97,5 +97,5 @@ export async function listVersions (name: string): Promise<{ versions: string[],
     const tb = time[b] ? Date.parse(time[b]) : 0
     return tb - ta
   })
-  return { versions, tags: pack['dist-tags'] ?? {} }
+  return { versions, tags: pack['dist-tags'] ?? {}, time }
 }

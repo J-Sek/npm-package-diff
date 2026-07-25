@@ -6,7 +6,9 @@
   import { useDiff } from '@/composables/useDiff'
   import { useRecentPackages } from '@/composables/useRecentPackages'
   import { getRepoSlug, listVersions, resolveTarball } from '@/lib/registry'
+  import { baseVersion, compareSemver, isPrerelease } from '@/lib/semver'
   import { ACHROMATIC_THEME, themeChoice } from '@/lib/storage'
+  import { buildVersionGroups, type VersionGroup } from '@/lib/version-groups'
   import AutocompleteInput from './AutocompleteInput.vue'
   import CopyButton from './CopyButton.vue'
   import ExcludeFilters from './ExcludeFilters.vue'
@@ -30,6 +32,7 @@
 
   // ---- Version dropdowns: lazily fetched per side, invalidated on name change.
   const versionItems = reactive<Record<Side, string[]>>({ a: [], b: [] })
+  const versionGroups = reactive<Record<Side, VersionGroup[]>>({ a: [], b: [] })
   const versionLoading = reactive<Record<Side, boolean>>({ a: false, b: false })
   const versionLoadedFor = reactive<Record<Side, string>>({ a: '', b: '' })
 
@@ -38,12 +41,14 @@
     if (!name || versionLoadedFor[side] === name) return
     versionLoading[side] = true
     try {
-      const { versions, tags } = await listVersions(name)
+      const { versions, tags, time } = await listVersions(name)
       // Dist-tags (latest, next, …) first, then versions newest-first.
       versionItems[side] = [...new Set([...Object.keys(tags), ...versions])]
+      versionGroups[side] = buildVersionGroups(versions, tags, time)
       versionLoadedFor[side] = name
     } catch {
       versionItems[side] = []
+      versionGroups[side] = []
     } finally {
       versionLoading[side] = false
     }
@@ -51,6 +56,7 @@
 
   watch(() => a.name, () => {
     versionItems.a = []
+    versionGroups.a = []
     versionLoadedFor.a = ''
     // A different "a" package invalidates any shared/selected file path.
     pendingPath.value = null
@@ -58,6 +64,7 @@
   })
   watch(() => b.name, () => {
     versionItems.b = []
+    versionGroups.b = []
     versionLoadedFor.b = ''
   })
 
@@ -65,24 +72,6 @@
   // param until its file shows up in the results.
   const activePath = ref<string | null>(null)
   const pendingPath = ref<string | null>(null)
-
-  function compareSemver (a: string, b: string): number {
-    const [aMain, aPre] = a.split('-', 2)
-    const [bMain, bPre] = b.split('-', 2)
-    const aParts = aMain.split('.').map(Number)
-    const bParts = bMain.split('.').map(Number)
-
-    for (let i = 0; i < 3; i++) {
-      if (aParts[i] !== bParts[i]) return (aParts[i] ?? 0) - (bParts[i] ?? 0)
-    }
-    if (aPre === bPre) return 0
-    if (aPre === undefined) return 1
-    if (bPre === undefined) return -1
-    return aPre < bPre ? -1 : 1
-  }
-
-  const isPrerelease = (v: string): boolean => v.includes('-')
-  const baseVersion = (v: string): string => v.split('-', 1)[0]
 
   async function resolvePrevVersion (name: string, anchorVersion: string): Promise<string> {
     const [{ versions }, { version }] = await Promise.all([
@@ -288,6 +277,7 @@
               <AutocompleteInput
                 v-model="a.version"
                 aria-label="Base version"
+                :groups="versionGroups.a"
                 :items="versionItems.a"
                 :loading="versionLoading.a"
                 placeholder="version"
@@ -326,6 +316,7 @@
               <AutocompleteInput
                 v-model="b.version"
                 aria-label="Compare version"
+                :groups="versionGroups.b"
                 :items="versionItems.b"
                 :loading="versionLoading.b"
                 placeholder="version"
