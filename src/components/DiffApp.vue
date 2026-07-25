@@ -66,13 +66,51 @@
   const activePath = ref<string | null>(null)
   const pendingPath = ref<string | null>(null)
 
+  function compareSemver (a: string, b: string): number {
+    const [aMain, aPre] = a.split('-', 2)
+    const [bMain, bPre] = b.split('-', 2)
+    const aParts = aMain.split('.').map(Number)
+    const bParts = bMain.split('.').map(Number)
+
+    for (let i = 0; i < 3; i++) {
+      if (aParts[i] !== bParts[i]) return (aParts[i] ?? 0) - (bParts[i] ?? 0)
+    }
+    if (aPre === bPre) return 0
+    if (aPre === undefined) return 1
+    if (bPre === undefined) return -1
+    return aPre < bPre ? -1 : 1
+  }
+
+  const isPrerelease = (v: string): boolean => v.includes('-')
+  const baseVersion = (v: string): string => v.split('-', 1)[0]
+
+  async function resolvePrevVersion (name: string, anchorVersion: string): Promise<string> {
+    const [{ versions }, { version }] = await Promise.all([
+      listVersions(name),
+      resolveTarball(name, anchorVersion),
+    ])
+
+    const anchorIsPrerelease = isPrerelease(version)
+    const prereleaseAllowed = (v: string) => anchorIsPrerelease && baseVersion(v) === baseVersion(version)
+    const candidates = versions.filter(v =>
+      (!isPrerelease(v) || prereleaseAllowed(v)) && compareSemver(v, version) < 0,
+    )
+
+    return candidates.toSorted(compareSemver).at(-1) ?? 'latest'
+  }
+
   // ---- URL params (?a=&b=, optional &av=&bv=&path=) — read on load, write on compare.
-  function readUrl () {
+  async function readUrl () {
     const p = new URLSearchParams(globalThis.location.search)
     if (p.get('a')) a.name = p.get('a')!
     if (p.get('b')) b.name = p.get('b')!
-    if (p.get('av')) a.version = p.get('av')!
     if (p.get('bv')) b.version = p.get('bv')!
+    const av = p.get('av')
+    if (av === 'prev') {
+      a.version = a.name === b.name ? await resolvePrevVersion(a.name, b.version).catch(() => 'latest') : 'latest'
+    } else if (av) {
+      a.version = av
+    }
     pendingPath.value = p.get('path')
   }
 
