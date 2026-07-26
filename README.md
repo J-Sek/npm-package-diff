@@ -11,7 +11,8 @@ module. The whole app is a static site you can drop on any host.
 
 ## Alternatives
 
-- [npmdiff.dev](https://npmdiff.dev/) – SSR, slow, no cross-package diffs, unknown source
+- [npmdiff.dev](https://npmdiff.dev/) – SSR, slow at times, no cross-package diffs, unknown source
+  (but handles very large files with no limit, which is a big advantage)
 - [MUI diff-package](https://frontend-public.mui.com/diff-package) – slow, crashes easily
 - [`npm diff`](https://docs.npmjs.com/cli/v9/commands/npm-diff) – CLI only, no HTML output, no filters
 - other CLI tools – unmaintained, cumbersome to use
