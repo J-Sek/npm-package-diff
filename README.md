@@ -44,9 +44,9 @@ cheapest signal for API changes) and `*.min.*` is excluded.
 
 ### Caveats
 
-- Vuetify's `dist/*.css` bundle files are not deterministic between builds
+- code order in Vuetify's `dist/*.css` bundle files is not deterministic between builds
    - pass `--exclude 'dist/*.css'` to drop that noise, and look at `lib/**/*.(sass|scss)` instead
-- Vuetify's `*.d.ts` files are not deterministic either as well as `dist/json/*.json` files
+- declaration order in Vuetify's `*.d.ts` and `dist/json/*.json` files is not deterministic either
    - prefer `lib/**/*.js` files instead until the issue is resolved
 
 ### vs GitHub compare
