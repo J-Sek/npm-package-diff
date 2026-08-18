@@ -57,6 +57,21 @@ test('a big file that merely shifted keeps its real patch', async () => {
   assert.match(files[0].patch!, /\+tail/)
 })
 
+test('bytes that are not valid UTF-8 count as binary, not as an empty diff', async () => {
+  // Differs only in the last byte, and both sequences are invalid UTF-8 with no
+  // NUL in them: the lenient decoder maps each to the same U+FFFD run, so the
+  // diff would come back empty and the file would read as unchanged.
+  const bytes = (last: number) => new Uint8Array([0xC3, 0x28, 0xA0, last, 0x0A])
+  const { files } = await buildDiff(
+    { ref: { name: 'p', version: '1' }, entries: [{ name: 'package/latin.txt', bytes: bytes(0xA1) }] },
+    { ref: { name: 'p', version: '2' }, entries: [{ name: 'package/latin.txt', bytes: bytes(0xA2) }] },
+    [], new AbortController(),
+  )
+  assert.equal(files.length, 1)
+  assert.equal(files[0].binary, true)
+  assert.equal(files[0].patch, undefined)
+})
+
 test('byte-identical and excluded files are dropped by the scan, not the diff pass', async () => {
   const result = await buildDiff(a, b, ['*.map'], new AbortController())
   assert.deepEqual(result.files.map(f => `${f.status} ${f.path}`), [

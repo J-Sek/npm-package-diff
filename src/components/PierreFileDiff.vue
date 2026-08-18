@@ -147,7 +147,7 @@
     </p>
 
     <p v-else-if="!file.patch" class="px-4 py-6 text-sm text-on-surface-variant italic">
-      No textual changes.
+      {{ file.added || file.removed ? 'No patch available for this file.' : 'No textual changes.' }}
     </p>
 
     <!-- Pierre renders the <diffs-container> custom element inside this host. -->

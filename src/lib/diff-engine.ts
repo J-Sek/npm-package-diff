@@ -44,10 +44,6 @@ function bytesEqual (a: Uint8Array, b: Uint8Array): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i])
 }
 
-function isBinary (bytes: Uint8Array): boolean {
-  return bytes.subarray(0, 8000).includes(0)
-}
-
 function countLines (text: string): number {
   if (text === '') {
     return 0
@@ -113,7 +109,18 @@ async function toMap (entries: TarEntry[]): Promise<Map<string, Uint8Array>> {
   return map
 }
 
-const decoder = new TextDecoder()
+const decoder = new TextDecoder('utf-8', { fatal: true })
+
+function decodeText (bytes: Uint8Array): string | null {
+  if (bytes.subarray(0, 8000).includes(0)) {
+    return null
+  }
+  try {
+    return decoder.decode(bytes)
+  } catch {
+    return null
+  }
+}
 
 interface ChangedFile {
   path: string
@@ -160,13 +167,13 @@ async function modifiedEntry (
 ): Promise<FileEntry> {
   const base = { path, scope: scopeOf(path), status: 'modified' as const }
 
-  if (isBinary(av) || isBinary(bv)) {
+  const textA = decodeText(av)
+  const textB = decodeText(bv)
+  if (textA === null || textB === null) {
     return { ...base, added: 0, removed: 0, linesA: 0, linesB: 0, chars: 0, binary: true }
   }
   await checkAborted(abortController)
 
-  const textA = decoder.decode(av)
-  const textB = decoder.decode(bv)
   const linesA = countLines(textA)
   const linesB = countLines(textB)
 
@@ -236,11 +243,10 @@ export async function buildDiff (
       files.push(entry)
       await checkAborted(abortController)
     } else if (bv && !av) {
-      const binary = isBinary(bv)
-      const text = binary ? '' : decoder.decode(bv)
-      const added = countLines(text)
+      const text = decodeText(bv)
+      const added = text === null ? 0 : countLines(text)
       linesAdded += added
-      const patch = binary ? undefined : await diffText('', text, abortController)
+      const patch = text === null ? undefined : await diffText('', text, abortController)
       await checkAborted(abortController)
 
       const patchChars = patch ? patch.length : 0
@@ -254,16 +260,15 @@ export async function buildDiff (
         linesA: 0,
         linesB: added,
         chars: patchChars,
-        binary,
+        binary: text === null,
         patch: patch && patch.length > maxPatch ? patch.slice(0, maxPatch) : patch,
         truncated: !!patch && patch.length > maxPatch,
       })
     } else if (av && !bv) {
-      const binary = isBinary(av)
-      const text = binary ? '' : decoder.decode(av)
-      const removed = countLines(text)
+      const text = decodeText(av)
+      const removed = text === null ? 0 : countLines(text)
       linesRemoved += removed
-      const patch = binary ? undefined : await diffText(text, '', abortController)
+      const patch = text === null ? undefined : await diffText(text, '', abortController)
       await checkAborted(abortController)
 
       const patchChars = patch ? patch.length : 0
@@ -277,7 +282,7 @@ export async function buildDiff (
         linesA: removed,
         linesB: 0,
         chars: patchChars,
-        binary,
+        binary: text === null,
         patch: patch && patch.length > maxPatch ? patch.slice(0, maxPatch) : patch,
         truncated: !!patch && patch.length > maxPatch,
       })
