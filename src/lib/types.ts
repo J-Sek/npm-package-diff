@@ -37,6 +37,8 @@ export interface FileEntry {
   chars: number
   /** True when the file looks binary and was not line-diffed. */
   binary: boolean
+  /** True when the two sides share almost no lines, so no patch was computed. */
+  rewritten?: boolean
   /** Unified diff body. Omitted for binary files; may be truncated. */
   patch?: string
   /** True when `patch` was truncated for display. */
@@ -85,7 +87,7 @@ export type WorkerRequest = {
 }
 
 export type WorkerResponse
-  = | { type: 'progress', id: number, stage: string, detail?: string }
+  = | { type: 'progress', id: number, stage: string, detail?: string, done?: number, total?: number }
     | { type: 'result', id: number, result: DiffResult }
     | { type: 'error', id: number, message: string }
     | { type: 'aborting', id: number }

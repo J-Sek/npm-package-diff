@@ -142,6 +142,10 @@
       Binary file — content diff not shown.
     </p>
 
+    <p v-else-if="file.rewritten" class="px-4 py-6 text-sm text-on-surface-variant italic">
+      Rewritten — the two versions share almost no lines, so no patch was computed.
+    </p>
+
     <p v-else-if="!file.patch" class="px-4 py-6 text-sm text-on-surface-variant italic">
       No textual changes.
     </p>

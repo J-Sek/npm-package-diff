@@ -12,6 +12,8 @@ export function useDiff () {
   const loading = shallowRef(false)
   const stage = ref('')
   const detail = ref('')
+  const done = ref(0)
+  const total = ref(0)
   const error = ref('')
 
   let worker: Worker | null = null
@@ -32,6 +34,8 @@ export function useDiff () {
     error.value = ''
     stage.value = 'starting'
     detail.value = ''
+    done.value = 0
+    total.value = 0
     result.value = null
 
     return new Promise((resolve, reject) => {
@@ -56,6 +60,8 @@ export function useDiff () {
           case 'progress': {
             stage.value = msg.stage
             detail.value = msg.detail ?? ''
+            done.value = msg.done ?? 0
+            total.value = msg.total ?? 0
 
             break
           }
@@ -101,5 +107,5 @@ export function useDiff () {
     ensureWorker().postMessage({ type: 'abort', id: nextId })
   }
 
-  return { result, loading, stage, detail, error, compare, abort, aborting, dispose }
+  return { result, loading, stage, detail, done, total, error, compare, abort, aborting, dispose }
 }

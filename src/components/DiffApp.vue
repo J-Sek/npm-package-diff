@@ -18,7 +18,7 @@
   import ThemeMenu from './ThemeMenu.vue'
 
   const { recent, remember } = useRecentPackages()
-  const { abort, aborting, result, loading, stage, detail, error, compare } = useDiff()
+  const { abort, aborting, result, loading, stage, detail, done, total, error, compare } = useDiff()
 
   const currentYear = new Date().getFullYear()
   const version = __APP_VERSION__
@@ -403,7 +403,9 @@
       :aborting="aborting"
       class="mb-4"
       :detail="detail"
+      :done="done"
       :stage="stage"
+      :total="total"
     />
 
     <div

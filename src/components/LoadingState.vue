@@ -1,12 +1,20 @@
 <script setup lang="ts">
-  defineProps<{
+  import { computed } from 'vue'
+
+  const props = defineProps<{
     /** Current stage of the diff (e.g. "fetching", "diffing"). */
     stage?: string
     /** Fine-grained detail line shown beneath the stage. */
     detail?: string
     /** Whether the run is being aborted — recolours to warn and overrides the stage label. */
     aborting?: boolean
+    /** Files diffed so far, when the run is in the per-file diff pass. */
+    done?: number
+    /** Files the preliminary scan found to diff. */
+    total?: number
   }>()
+
+  const percent = computed(() => (props.total ? Math.round(100 * (props.done ?? 0) / props.total) : 0))
 </script>
 
 <template>
@@ -73,10 +81,24 @@
       </ellipse>
     </svg>
 
-    <div v-if="aborting || stage || detail" class="flex flex-col items-center gap-1">
+    <div v-if="aborting || stage || detail" class="flex flex-col items-center gap-1 max-w-full">
       <span v-if="aborting" class="font-medium text-warning">Aborting…</span>
+
       <span v-else-if="stage" class="font-medium capitalize text-on-surface">{{ stage }}</span>
-      <span v-if="detail" class="opacity-60 font-mono text-xs text-on-surface-variant">{{ detail }}</span>
+
+      <span v-if="total" class="text-xs"> {{ done }}/{{ total }} files</span>
+
+      <span v-if="detail" class="opacity-60 max-w-full font-mono text-xs text-on-surface-variant truncate">{{ detail }}</span>
+
+      <div
+        v-if="total && !aborting"
+        aria-label="Diff progress"
+        :aria-valuenow="percent"
+        class="rounded-full bg-surface-variant h-1 w-60 mt-2 overflow-hidden"
+        role="progressbar"
+      >
+        <div class="rounded-full bg-primary h-full transition-[width]" :style="{ width: `${percent}%` }" />
+      </div>
     </div>
   </div>
 </template>

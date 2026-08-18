@@ -189,7 +189,7 @@ export function formatSummary (result: DiffResult, cmd: string, budget: number, 
         omitted++
         continue
       }
-      const row = `  ${STATUS[f.status]} ${f.path.padEnd(pad)} ${`+${f.added}`.padStart(7)} ${`-${f.removed}`.padStart(7)} ${String(f.chars).padStart(9)}${f.binary ? '  binary' : ''}`
+      const row = `  ${STATUS[f.status]} ${f.path.padEnd(pad)} ${`+${f.added}`.padStart(7)} ${`-${f.removed}`.padStart(7)} ${String(f.chars).padStart(9)}${f.binary ? '  binary' : ''}${f.rewritten ? '  rewritten' : ''}`
       spent += row.length + 1
       out.push(row)
     }
@@ -218,7 +218,7 @@ export function formatPatches (result: DiffResult, cmd: string, range: LineRange
     }
     out.push(`# ${STATUS[f.status]} ${f.path} (${f.chars} chars)`)
     if (f.binary || !f.patch) {
-      out.push(f.binary ? '# binary — not line-diffed' : '# no patch available', '')
+      out.push(f.binary ? '# binary — not line-diffed' : f.rewritten ? '# rewritten — shares almost no lines with the other side, not line-diffed' : '# no patch available', '')
       continue
     }
     out.push(`--- a/${f.path}`, `+++ b/${f.path}`)

@@ -76,8 +76,10 @@ self.addEventListener('message', async (event: MessageEvent<WorkerRequest>) => {
 
     await checkAborted(abortController)
 
-    post({ type: 'progress', id, stage: 'diff', detail: `${a.entries.length}↔${b.entries.length} files` })
-    const result = await buildDiff(a, b, msg.options.exclude, abortController)
+    post({ type: 'progress', id, stage: 'scan', detail: `${a.entries.length}↔${b.entries.length} files` })
+    const result = await buildDiff(a, b, msg.options.exclude, abortController, {
+      onProgress: (done, total, path) => post({ type: 'progress', id, stage: 'diff', detail: path, done, total }),
+    })
     await checkAborted(abortController)
     post({ type: 'result', id, result: result! })
   } catch (error) {
